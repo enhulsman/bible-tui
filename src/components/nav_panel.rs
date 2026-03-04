@@ -6,6 +6,7 @@ use ratatui::Frame;
 
 use crate::action::Action;
 use crate::bible::canon::CANON;
+use crate::bible::model::Book;
 use crate::ui::theme::Theme;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -152,19 +153,19 @@ impl NavPanel {
         self.selected_chapter = new as usize;
     }
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
+    pub fn render(&mut self, frame: &mut Frame, area: Rect, books: &[Book]) {
         let chunks = Layout::vertical([
             Constraint::Percentage(65),
             Constraint::Percentage(35),
         ])
         .split(area);
 
-        self.render_books(frame, chunks[0]);
+        self.render_books(frame, chunks[0], books);
         self.render_chapters(frame, chunks[1]);
     }
 
-    fn render_books(&mut self, frame: &mut Frame, area: Rect) {
-        let items: Vec<ListItem> = CANON
+    fn render_books(&mut self, frame: &mut Frame, area: Rect, books: &[Book]) {
+        let items: Vec<ListItem> = books
             .iter()
             .enumerate()
             .map(|(i, book)| {
