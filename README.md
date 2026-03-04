@@ -5,11 +5,13 @@ A terminal Bible reader with vim-like navigation, built with Rust and ratatui.
 ## Features
 
 - **3 bundled translations** — KJV, WEB (with red-letter text), and Statenvertaling (Dutch)
+- **Import translations** — add from MyBible SQLite, Zefania XML, or JSON files; loaded at runtime from SQLite library
+- **Command autocomplete** — dropdown suggestions for commands, translations, and book names
 - **Full-text search** — in-memory search index, min 2 characters, results across all books
 - **Bookmarks** — save and recall verse positions
 - **Vim-like navigation** — `j/k` scrolling, `g/G` jump, `:goto` command mode
-- **Import support** — add translations from MyBible SQLite, Zefania XML, or JSON files
-- **Fast startup** — translations bundled as postcard binary, deserialized instantly
+- **State persistence** — remembers last position and translation across sessions
+- **Fast startup** — bundled translations serialized as postcard binary, deserialized instantly
 
 ## Installation
 
@@ -20,14 +22,34 @@ cargo install --path .
 ## Usage
 
 ```
-bible                   # Launch with default translation (KJV)
-bible --translation sv  # Launch with Statenvertaling
-bible import file.xml   # Import a translation file
+bible                        # Launch TUI (default: KJV, or last used translation)
+bible import file.json       # Import a translation file into the library
 ```
 
-Navigate with `j`/`k` to scroll, `Space`/`Backspace` for next/previous chapter,
-`Tab` to open the book/chapter navigation panel, `/` to search, and `:goto John 3:16`
-to jump to a reference.
+### Importing Translations
+
+Import adds a translation to the SQLite library (`~/.local/share/bible-tui/library.sqlite`). Imported translations appear alongside bundled ones in `:t` autocomplete.
+
+```
+bible import path/to/translation.xml
+bible import path/to/translation.json
+bible import path/to/translation.mybible
+```
+
+Supported formats:
+
+- **MyBible** (`.mybible`, `.sqlite`, `.sqlite3`) — SQLite databases from the MyBible app
+- **Zefania XML** (`.xml`) — open Bible XML format with `<XMLBIBLE>` root element
+- **SimpleJSON** (`.json`) — JSON with `name`, `abbreviation`, `language`, and `books` array containing chapters and verses
+
+### HSV (Herziene Statenvertaling)
+
+A conversion tool is included for importing the HSV from a licensed PDF:
+
+```
+nix-shell -p python3Packages.pymupdf --run 'python tools/convert_hsv.py HSV_Bijbel.pdf'
+bible import ~/.local/share/bible-tui/translations/hsv.json
+```
 
 ## Keybindings
 
@@ -59,41 +81,39 @@ to jump to a reference.
 
 ### Search (/)
 
-| Key          | Action           |
-|--------------|------------------|
+| Key            | Action           |
+|----------------|------------------|
 | Type to search | Min 2 characters |
-| `↑` / `↓`   | Select result    |
-| Enter        | Go to result     |
-| Esc          | Close search     |
+| `↑` / `↓`     | Select result    |
+| Enter          | Go to result     |
+| Esc            | Close search     |
+
+### Commands (:)
+
+| Key            | Action                          |
+|----------------|---------------------------------|
+| Tab            | Accept autocomplete suggestion  |
+| `↑` / `↓`     | Navigate suggestions            |
+| Enter          | Execute command                 |
+| Esc            | Close command mode              |
 
 ## Commands
 
-| Command          | Action                            |
-|------------------|-----------------------------------|
-| `:q`             | Quit                              |
-| `:goto <ref>`    | Go to reference (e.g. `John 3:16`) |
-| `:t <name>`      | Switch translation (`kjv`/`web`/`sv`) |
-
-## Import Formats
-
-**MyBible** (`.mybible`, `.sqlite`, `.sqlite3`) — SQLite databases from the MyBible app.
-
-**Zefania XML** (`.xml`) — open Bible XML format with `<XMLBIBLE>` root element.
-
-**JSON** (`.json`) — simple JSON schema with books, chapters, and verses arrays.
-
-Import with:
-```
-bible import path/to/translation.xml
-```
+| Command       | Action                                       |
+|---------------|----------------------------------------------|
+| `:q`          | Quit                                         |
+| `:goto <ref>` | Go to reference (e.g. `John 3:16`, `Rev 22`) |
+| `:t <name>`   | Switch translation (bundled or imported)      |
 
 ## Design Decisions
 
 - **Bundled postcard binary** — translations are parsed at build time and serialized
   with postcard for near-instant deserialization at startup
+- **SQLite library for imports** — imported translations stored in a single SQLite file;
+  bulk-loaded into memory on switch with translation-specific book names
 - **Pre-wrapped text** — text is wrapped before rendering to work around
-  ratatui's line-based scrolling (ratatui#2342), so scroll offset maps 1:1 to screen rows
-- **In-memory search index** — full-text search built on load, no external index files
+  ratatui's line-based scrolling, so scroll offset maps 1:1 to screen rows
+- **In-memory search index** — full-text search built on translation load, no external index files
 
 ## Tech Stack
 
