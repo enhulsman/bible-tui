@@ -12,7 +12,7 @@ enum CompletionContext {
     Command,
     Translation,
     Goto,
-    None,
+    Other,
 }
 
 const COMMANDS: &[&str] = &["quit", "goto", "translation"];

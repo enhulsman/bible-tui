@@ -45,11 +45,10 @@ EXPECTED_CHAPTERS = [
 ARTIFACT_RE = re.compile(r'^Pagina \d+$')
 VERSION_RE = re.compile(r'^Herziene Statenvertaling Versie$')
 BOOK_INDEX_RE = re.compile(r'^Boek \d+')
+INDEX_RE = re.compile(r'^Index ')
 
-# Parse patterns
+# Chapter header (actual chapters use "Hoofdstuk", TOC uses "Hoofdstuck")
 CHAPTER_RE = re.compile(r'^Hoofdstuk (\d+)$')
-VERSE_RE = re.compile(r'^(\d+):(\d+)\s+(.*)')
-# Continuation: a line that doesn't match verse/chapter patterns
 
 
 def extract_text(pdf_path):
@@ -69,6 +68,8 @@ def extract_text(pdf_path):
                 continue
             if BOOK_INDEX_RE.match(line):
                 continue
+            if INDEX_RE.match(line):
+                continue
             lines.append(line)
     doc.close()
     return lines
@@ -80,7 +81,6 @@ def rejoin_hyphenated(lines):
     i = 0
     while i < len(lines):
         line = lines[i]
-        # Check if line ends with a hyphen and next line starts lowercase
         while (i + 1 < len(lines) and line.endswith('-')
                and lines[i + 1] and lines[i + 1][0].islower()):
             line = line[:-1] + lines[i + 1]
@@ -90,38 +90,73 @@ def rejoin_hyphenated(lines):
     return result
 
 
+def extract_verses(chapter_num, text):
+    """Extract individual verses from a chapter's joined text.
+
+    The PDF uses inline ch:verse references throughout:
+        1:1 In het begin... 1:2 De aarde nu... 1:3 En God zei...
+    We split on these patterns to isolate each verse's text.
+    """
+    ch_str = str(chapter_num)
+
+    # Replace inline "ch:verse " references with sentinels.
+    # Negative lookbehind prevents "112:5" matching for chapter 12.
+    inline_re = re.compile(r'(?<!\d)' + re.escape(ch_str) + r':(\d+)\s+')
+    text = inline_re.sub(lambda m: f'\x00{m.group(1)}\x00', text)
+
+    # Split on sentinels and pair verse numbers with text
+    parts = text.split('\x00')
+    verses = []
+    current_verse = None
+    current_text_parts = []
+
+    for part in parts:
+        part_stripped = part.strip()
+        if not part_stripped:
+            continue
+        # Verse numbers are isolated between sentinels (max 3 digits)
+        if part_stripped.isdigit() and len(part_stripped) <= 3:
+            # Flush previous verse
+            if current_verse is not None and current_text_parts:
+                verse_text = " ".join(current_text_parts).strip()
+                if verse_text:
+                    verses.append({"verse": current_verse, "text": verse_text})
+                current_text_parts = []
+            current_verse = int(part_stripped)
+        else:
+            current_text_parts.append(part_stripped)
+
+    # Flush last verse
+    if current_verse is not None and current_text_parts:
+        verse_text = " ".join(current_text_parts).strip()
+        if verse_text:
+            verses.append({"verse": current_verse, "text": verse_text})
+
+    return verses
+
+
 def parse_books(lines):
     """Parse lines into books with chapters and verses."""
     books = []
     current_book_idx = 0
     current_chapter = 0
-    current_verse_num = 0
-    current_verse_text = ""
+    chapter_lines = []
     chapters = []
-    verses = []
 
-    def flush_verse():
-        nonlocal current_verse_text, current_verse_num
-        if current_verse_num > 0 and current_verse_text:
-            verses.append({
-                "verse": current_verse_num,
-                "text": current_verse_text.strip()
-            })
-            current_verse_text = ""
-
-    def flush_chapter():
-        nonlocal verses, current_chapter
-        flush_verse()
-        if current_chapter > 0 and verses:
-            chapters.append({
-                "chapter": current_chapter,
-                "verses": list(verses)
-            })
-            verses = []
+    def process_chapter():
+        nonlocal chapter_lines
+        if not chapter_lines or current_chapter == 0:
+            chapter_lines = []
+            return
+        text = " ".join(chapter_lines)
+        chapter_lines = []
+        verses = extract_verses(current_chapter, text)
+        if verses:
+            chapters.append({"chapter": current_chapter, "verses": verses})
 
     def flush_book():
         nonlocal chapters, current_book_idx
-        flush_chapter()
+        process_chapter()
         if chapters:
             book_name = BOOK_ORDER[current_book_idx] if current_book_idx < len(BOOK_ORDER) else f"Book {current_book_idx + 1}"
             books.append({
@@ -136,28 +171,14 @@ def parse_books(lines):
         if ch_match:
             ch_num = int(ch_match.group(1))
             if ch_num == 1 and current_chapter > 0:
-                # New book detected (chapter reset)
                 flush_book()
                 current_book_idx += 1
-            flush_chapter()
+            process_chapter()
             current_chapter = ch_num
-            continue
+        else:
+            chapter_lines.append(line)
 
-        verse_match = VERSE_RE.match(line)
-        if verse_match:
-            flush_verse()
-            # The chapter:verse pattern - we use the verse number
-            current_verse_num = int(verse_match.group(2))
-            current_verse_text = verse_match.group(3)
-            continue
-
-        # Continuation line
-        if current_verse_num > 0:
-            current_verse_text += " " + line
-
-    # Flush remaining
     flush_book()
-
     return books
 
 
@@ -195,6 +216,8 @@ def main():
 
     if len(books) != 66:
         print(f"WARNING: Expected 66 books, got {len(books)}", file=sys.stderr)
+    if total_verses < 25000:
+        print(f"WARNING: Expected ~31k verses, only got {total_verses}", file=sys.stderr)
 
     # Output
     output_dir = os.path.expanduser("~/.local/share/bible-tui/translations")
