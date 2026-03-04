@@ -42,6 +42,7 @@ pub struct App {
     last_width: u16,
     storage: Option<Storage>,
     bookmarks: BookmarkStore,
+    error_message: Option<String>,
 }
 
 impl App {
@@ -90,6 +91,7 @@ impl App {
             last_width: 80,
             storage,
             bookmarks,
+            error_message: None,
         }
     }
 
@@ -156,6 +158,13 @@ impl App {
     }
 
     pub fn update(&mut self, action: &Action) {
+        // Clear error on meaningful user actions
+        match action {
+            Action::Tick | Action::None | Action::Resize(_, _) | Action::ExecuteCommand(_) => {}
+            _ => {
+                self.error_message = None;
+            }
+        }
         match action {
             Action::Quit => {
                 self.save_state();
@@ -256,6 +265,9 @@ impl App {
                         reference::parse_reference(ref_str.trim(), context_book, context_chapter)
                     {
                         self.navigate_to(vref.book_index, vref.chapter);
+                        self.error_message = None;
+                    } else {
+                        self.error_message = Some(format!("Unknown reference: {}", ref_str.trim()));
                     }
                 }
             }
@@ -367,6 +379,7 @@ impl App {
             self.reading_pane.chapter_num(),
             self.reading_pane.current_verse_approx(),
             translation,
+            self.error_message.as_deref(),
         );
 
         // Overlays

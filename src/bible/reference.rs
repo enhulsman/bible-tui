@@ -156,4 +156,31 @@ mod tests {
         assert_eq!(vr.chapter, 22);
         assert_eq!(vr.verse, 21);
     }
+
+    #[test]
+    fn parse_prefix_book_name() {
+        let vr = parse_reference("Psalm 23", None, None).unwrap();
+        assert_eq!(vr.book_index, 18); // Psalms
+        assert_eq!(vr.chapter, 23);
+    }
+
+    #[test]
+    fn parse_numbered_prefix() {
+        let vr = parse_reference("1 Cor 13", None, None).unwrap();
+        assert_eq!(vr.book_index, 45); // 1 Corinthians
+        assert_eq!(vr.chapter, 13);
+    }
+
+    #[test]
+    fn parse_ambiguous_prefix_fails() {
+        // "Jo" matches Job, Joel, Jonah, Joshua, John — ambiguous
+        assert!(parse_reference("Jo 3", None, None).is_none());
+    }
+
+    #[test]
+    fn parse_bare_prefix_book() {
+        let vr = parse_reference("Psalm", None, None).unwrap();
+        assert_eq!(vr.book_index, 18);
+        assert_eq!(vr.chapter, 1);
+    }
 }
