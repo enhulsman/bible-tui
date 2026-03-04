@@ -824,6 +824,14 @@ fn consolidate_spans(spans: Vec<VerseSpan>) -> Vec<VerseSpan> {
             _ => result.push(span),
         }
     }
+    // Normalize whitespace: collapse \n, \r, \t, and multiple spaces into single space
+    for span in &mut result {
+        let text = match span {
+            VerseSpan::Plain(t) | VerseSpan::RedLetter(t) => t,
+            _ => continue,
+        };
+        *text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    }
     result
 }
 
