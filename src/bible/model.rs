@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone)]
+pub struct TranslationInfo {
+    pub id: TranslationId,
+    pub name: String,
+    pub abbreviation: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BundledTranslation {
     Kjv,
@@ -16,12 +23,19 @@ impl BundledTranslation {
         }
     }
 
-    #[allow(dead_code)]
     pub fn name(&self) -> &'static str {
         match self {
             Self::Kjv => "King James Version",
             Self::Web => "World English Bible",
             Self::Sv => "Statenvertaling",
+        }
+    }
+
+    pub fn info(&self) -> TranslationInfo {
+        TranslationInfo {
+            id: TranslationId::Bundled(*self),
+            name: self.name().to_string(),
+            abbreviation: self.abbreviation().to_string(),
         }
     }
 }
