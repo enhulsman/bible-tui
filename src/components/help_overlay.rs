@@ -34,7 +34,8 @@ const HELP_LINES: &[(&str, &str)] = &[
     ("COMMANDS (:)", ""),
     (":q", "Quit"),
     (":goto <ref>", "Go to reference (e.g. John 3:16)"),
-    (":t <name>", "Switch translation (kjv/web/sv)"),
+    (":t <name>", "Switch translation (incl. imported)"),
+    ("Tab", "Accept autocomplete suggestion"),
 ];
 
 pub struct HelpOverlay;
