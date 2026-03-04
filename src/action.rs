@@ -1,0 +1,32 @@
+/// All discrete operations the app can perform.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
+pub enum Action {
+    Quit,
+    ScrollUp(u16),
+    ScrollDown(u16),
+    ScrollToTop,
+    ScrollToBottom,
+    PageDown,
+    PageUp,
+    NextChapter,
+    PrevChapter,
+    ToggleNavPanel,
+    SelectBook(u8),
+    SelectChapter(u16),
+    NavigateToRef { book: u8, chapter: u16 },
+    EnterSearchMode,
+    ExitSearchMode,
+    SearchQuery(String),
+    SearchNext,
+    SearchPrev,
+    EnterCommandMode,
+    ExitCommandMode,
+    ExecuteCommand(String),
+    ToggleHelp,
+    BookmarkCurrent,
+    YankVerse,
+    Resize(u16, u16),
+    Tick,
+    None,
+}
