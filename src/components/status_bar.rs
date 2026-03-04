@@ -38,6 +38,8 @@ impl StatusBar {
             Span::styled(" nav  ", Theme::status_hint()),
             Span::styled("B", Theme::status_key()),
             Span::styled(" bookmark  ", Theme::status_hint()),
+            Span::styled("?", Theme::status_key()),
+            Span::styled(" help  ", Theme::status_hint()),
             Span::styled("q", Theme::status_key()),
             Span::styled(" quit", Theme::status_hint()),
         ]))
