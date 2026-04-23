@@ -20,6 +20,7 @@ pub struct NavPanel {
     selected_chapter: usize,
     chapter_count: u16,
     focus: NavFocus,
+    chapter_page_size: usize,
 }
 
 impl NavPanel {
@@ -32,6 +33,7 @@ impl NavPanel {
             selected_chapter: 0,
             chapter_count: CANON[0].chapter_count,
             focus: NavFocus::Books,
+            chapter_page_size: 1,
         }
     }
 
@@ -75,6 +77,52 @@ impl NavPanel {
                 }
                 Action::None
             }
+            KeyCode::Char('g') => {
+                match self.focus {
+                    NavFocus::Books => {
+                        self.selected_book = 0;
+                        self.book_state.select(Some(0));
+                        self.chapter_count = CANON[0].chapter_count;
+                        self.selected_chapter = 0;
+                    }
+                    NavFocus::Chapters => {
+                        self.selected_chapter = 0;
+                    }
+                }
+                Action::None
+            }
+            KeyCode::Char('G') => {
+                match self.focus {
+                    NavFocus::Books => {
+                        self.selected_book = 65;
+                        self.book_state.select(Some(65));
+                        self.chapter_count = CANON[65].chapter_count;
+                        self.selected_chapter = 0;
+                    }
+                    NavFocus::Chapters => {
+                        self.selected_chapter = (self.chapter_count as usize).saturating_sub(1);
+                    }
+                }
+                Action::None
+            }
+            KeyCode::PageDown | KeyCode::Char('f') => {
+                match self.focus {
+                    NavFocus::Books => self.move_book(10),
+                    NavFocus::Chapters => {
+                        self.move_chapter(self.chapter_page_size.max(1) as i32);
+                    }
+                }
+                Action::None
+            }
+            KeyCode::PageUp | KeyCode::Char('b') => {
+                match self.focus {
+                    NavFocus::Books => self.move_book(-10),
+                    NavFocus::Chapters => {
+                        self.move_chapter(-(self.chapter_page_size.max(1) as i32));
+                    }
+                }
+                Action::None
+            }
             KeyCode::Enter => {
                 let chapter = if self.focus == NavFocus::Chapters {
                     (self.selected_chapter + 1) as u16
@@ -91,20 +139,17 @@ impl NavPanel {
     }
 
     fn move_book(&mut self, delta: i32) {
-        let new = self.selected_book as i32 + delta;
-        if new >= 0 && (new as usize) < 66 {
-            self.selected_book = new as usize;
-            self.book_state.select(Some(self.selected_book));
-            self.chapter_count = CANON[self.selected_book].chapter_count;
-            self.selected_chapter = 0;
-        }
+        let new = (self.selected_book as i32 + delta).clamp(0, 65);
+        self.selected_book = new as usize;
+        self.book_state.select(Some(self.selected_book));
+        self.chapter_count = CANON[self.selected_book].chapter_count;
+        self.selected_chapter = 0;
     }
 
     fn move_chapter(&mut self, delta: i32) {
-        let new = self.selected_chapter as i32 + delta;
-        if new >= 0 && (new as u16) < self.chapter_count {
-            self.selected_chapter = new as usize;
-        }
+        let new = (self.selected_chapter as i32 + delta)
+            .clamp(0, self.chapter_count as i32 - 1);
+        self.selected_chapter = new as usize;
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
@@ -152,7 +197,7 @@ impl NavPanel {
         frame.render_stateful_widget(list, area, &mut self.book_state);
     }
 
-    fn render_chapters(&self, frame: &mut Frame, area: Rect) {
+    fn render_chapters(&mut self, frame: &mut Frame, area: Rect) {
         let border_style = if self.focus == NavFocus::Chapters {
             Style::default().add_modifier(Modifier::BOLD)
         } else {
@@ -167,10 +212,24 @@ impl NavPanel {
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
-        // Render chapters in a grid layout
+        // Render chapters in a grid layout with scroll offset
         let cols = (inner.width / 4).max(1) as usize;
+        let visible_rows = inner.height as usize;
+        let selected_row = self.selected_chapter / cols;
+
+        // Update page size for PgUp/PgDn
+        self.chapter_page_size = visible_rows.saturating_sub(1) * cols;
+
+        // Scroll to keep selected row visible
+        let scroll_offset = if selected_row >= visible_rows {
+            selected_row - visible_rows + 1
+        } else {
+            0
+        };
+
         let mut lines: Vec<Line> = Vec::new();
         let mut row_spans: Vec<Span> = Vec::new();
+        let mut current_row = 0;
 
         for ch in 0..self.chapter_count as usize {
             let style = if ch == self.selected_chapter {
@@ -182,10 +241,15 @@ impl NavPanel {
             row_spans.push(Span::styled(label, style));
 
             if row_spans.len() >= cols {
-                lines.push(Line::from(std::mem::take(&mut row_spans)));
+                if current_row >= scroll_offset {
+                    lines.push(Line::from(std::mem::take(&mut row_spans)));
+                } else {
+                    row_spans.clear();
+                }
+                current_row += 1;
             }
         }
-        if !row_spans.is_empty() {
+        if !row_spans.is_empty() && current_row >= scroll_offset {
             lines.push(Line::from(row_spans));
         }
 

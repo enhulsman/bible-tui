@@ -52,6 +52,8 @@ to jump to a reference.
 |------------------------|-------------------------|
 | `j` / `k` / `↑` / `↓` | Move through list       |
 | `h` / `l` / `←` / `→` | Switch books / chapters |
+| `g` / `G`              | First / Last item       |
+| `f` / `b` / PgDn/PgUp | Page through chapters   |
 | Enter                  | Go to selection         |
 | Esc / Tab              | Close panel             |
 
