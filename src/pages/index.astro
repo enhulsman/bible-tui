@@ -12,7 +12,9 @@ import Layout from "../layouts/Layout.astro";
   <section class="hero-section px-6">
     <div class="mx-auto max-w-[720px] text-center">
       <h1 class="verse-heading">
-        "In the beginning was the Word, and the Word was with God, and the Word was God."
+        "In the beginning was the Word,<br>
+        and the Word was with God,<br>
+        and the Word was God."
       </h1>
       <p class="verse-ref">— John 1:1, KJV</p>
       <div class="divider"></div>
@@ -24,7 +26,7 @@ import Layout from "../layouts/Layout.astro";
   </section>
 
   <!-- Transition + Terminal section -->
-  <div class="transition-wrapper">
+  <div class="transition-wrapper" style="background:#1A1816">
     <div class="lightbeam-backdrop" aria-hidden="true"></div>
     <div class="mx-auto max-w-[900px] px-6">
       <!-- Terminal container -->
@@ -89,6 +91,38 @@ import Layout from "../layouts/Layout.astro";
     </footer>
   </div>
 </Layout>
+
+<script>
+  document.querySelector('.cta-button')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = document.getElementById('reader');
+    if (!target) return;
+    const y = target.getBoundingClientRect().top + window.scrollY - 96;
+    const html = document.documentElement;
+    html.style.scrollBehavior = 'auto';
+    const start = window.scrollY;
+    const distance = y - start;
+    const duration = 1200;
+    let startTime = null;
+
+    function ease(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function step(timestamp) {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      window.scrollTo(0, start + distance * ease(progress));
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        html.style.scrollBehavior = '';
+      }
+    }
+
+    requestAnimationFrame(step);
+  });
+</script>
 
 <style>
   /* Header — positioned over the hero, not in flow */
