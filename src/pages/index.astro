@@ -3,15 +3,13 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout>
-  <div class="parchment-texture" aria-hidden="true"></div>
-
   <!-- Header -->
   <header class="px-6 py-4 md:px-12 md:py-6">
     <span class="wordmark">bible.hulsman.dev</span>
   </header>
 
   <!-- Hero section -->
-  <section class="hero-section px-6 pb-32">
+  <section class="hero-section px-6">
     <div class="mx-auto max-w-[720px] text-center">
       <h1 class="verse-heading">
         "In the beginning was the Word, and the Word was with God, and the Word was God."
@@ -21,6 +19,7 @@ import Layout from "../layouts/Layout.astro";
       <p class="subtitle">
         A terminal Bible reader in your browser. Three translations, vim navigation, full-text search.
       </p>
+      <a href="#reader" class="cta-button">Read the Word</a>
     </div>
   </section>
 
@@ -29,7 +28,7 @@ import Layout from "../layouts/Layout.astro";
     <div class="lightbeam-backdrop" aria-hidden="true"></div>
     <div class="mx-auto max-w-[900px] px-6">
       <!-- Terminal container -->
-      <div class="terminal-container">
+      <div id="reader" class="terminal-container">
         <!-- Title bar -->
         <div class="terminal-titlebar">
           <div class="flex items-center gap-1.5">
@@ -66,8 +65,7 @@ import Layout from "../layouts/Layout.astro";
     <section class="about-section">
       <div class="mx-auto max-w-[560px] px-6 text-center">
         <p class="about-text">
-          Built with Rust and compiled to WebAssembly. Three translations: KJV, WEB, and Dutch Statenvertaling.
-          All processing happens in your browser — no server, no tracking.
+          Three translations to explore — KJV, WEB, and the Dutch Statenvertaling — with the warmth of a terminal and the ease of your browser. Built with Rust and WebAssembly. Nothing leaves your device.
         </p>
         <a
           href="https://github.com/enhulsman/bible-tui"
@@ -93,23 +91,6 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <style>
-  /* Parchment texture overlay — fixed, behind all hero content */
-  .parchment-texture {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
-    z-index: 0;
-    pointer-events: none;
-    background-image: url('/assets/parchment.webp');
-    background-size: 512px 512px;
-    background-repeat: repeat;
-    opacity: 0.5;
-    mix-blend-mode: multiply;
-    mask-image: linear-gradient(to bottom, black 0%, black 25%, transparent 55%);
-  }
-
   /* Wordmark */
   .wordmark {
     font-family: var(--font-sans);
@@ -119,22 +100,21 @@ import Layout from "../layouts/Layout.astro";
   }
 
   /* Hero */
-  header {
-    position: relative;
-    z-index: 1;
-  }
-
   .hero-section {
-    padding-top: 20vh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     position: relative;
-    z-index: 1;
+    z-index: 2;
   }
 
   .verse-heading {
     font-family: var(--font-serif);
     font-style: italic;
     font-weight: 400;
-    font-size: clamp(1.75rem, 4vw, 3rem);
+    font-size: clamp(2rem, 5vw, 3.25rem);
     line-height: 1.4;
     letter-spacing: -0.01em;
     color: #2C2825;
@@ -165,30 +145,64 @@ import Layout from "../layouts/Layout.astro";
     line-height: 1.6;
   }
 
+  .cta-button {
+    display: inline-block;
+    margin-top: 3rem;
+    padding: 0.75rem 2rem;
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.0625rem;
+    color: #8B4049;
+    border: 1px solid rgba(139, 64, 73, 0.3);
+    border-radius: 60px;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: all 250ms ease;
+  }
+
+  .cta-button:hover {
+    background: rgba(139, 64, 73, 0.06);
+    border-color: rgba(139, 64, 73, 0.5);
+    color: #6B2F36;
+  }
+
   /* Transition wrapper — parchment fades to dark */
   .transition-wrapper {
-    background-image:
-      linear-gradient(to bottom,
-        rgba(245,242,235,0.95) 0%,
-        rgba(237,233,224,0.97) 2%,
-        rgba(221,214,200,0.98) 6%,
-        rgba(184,173,153,0.99) 12%,
-        rgba(154,142,122,1) 18%,
-        #7D7163 24%,
-        #5E5345 30%,
-        #3F3630 36%,
-        #2A2420 42%,
-        #1A1816 50%,
-        #1A1816 100%
-      ),
-      url('/assets/parchment.webp');
-    background-size: auto, 512px 512px;
-    background-repeat: no-repeat, repeat;
-    background-attachment: scroll, fixed;
+    background: #1A1816;
     padding-top: 10rem;
-    padding-bottom: 8rem;
+    padding-bottom: 3rem;
     position: relative;
-    overflow: hidden;
+  }
+
+  .transition-wrapper::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 52rem;
+    background: linear-gradient(to bottom,
+      rgba(245,242,235,0) 0%,
+      rgba(245,242,235,0) 40%,
+      rgba(244,241,233,0.03) 46%,
+      rgba(243,239,231,0.07) 51%,
+      rgba(241,237,228,0.12) 55%,
+      rgba(238,234,224,0.18) 59%,
+      rgba(234,229,218,0.26) 63%,
+      rgba(228,222,210,0.35) 67%,
+      rgba(220,213,200,0.45) 70%,
+      rgba(210,202,188,0.55) 73%,
+      rgba(196,187,172,0.65) 76%,
+      rgba(178,168,152,0.75) 79%,
+      rgba(156,146,130,0.84) 82%,
+      rgba(130,120,106,0.91) 85%,
+      rgba(100,90,78,0.96) 88%,
+      rgba(70,62,54,0.99) 91%,
+      rgba(40,35,30,1) 94%,
+      #1A1816 97%,
+      #1A1816 100%
+    );
+    pointer-events: none;
   }
 
   /* Light beam atmospheric backdrop */
@@ -204,7 +218,7 @@ import Layout from "../layouts/Layout.astro";
     background-size: cover;
     background-position: center top;
     background-repeat: no-repeat;
-    opacity: 0.25;
+    opacity: 0.12;
     mix-blend-mode: screen;
     mask-image: radial-gradient(ellipse 60% 70% at center 35%, black 0%, transparent 80%);
   }
@@ -217,6 +231,7 @@ import Layout from "../layouts/Layout.astro";
 
   /* Terminal */
   .terminal-container {
+    scroll-margin-top: 6rem;
     background: #1A1816;
     border-radius: 8px;
     box-shadow:
@@ -264,6 +279,20 @@ import Layout from "../layouts/Layout.astro";
     }
   }
 
+  @media (max-width: 640px) {
+    .subtitle {
+      font-size: 0.9375rem; /* 15px */
+      line-height: 1.5;
+    }
+    .verse-ref {
+      font-size: 0.8125rem; /* 13px */
+    }
+    .cta-button {
+      font-size: 0.9375rem;
+      padding: 0.625rem 1.75rem;
+    }
+  }
+
   .terminal-loading {
     font-family: var(--font-mono);
     font-size: 0.875rem;
@@ -303,8 +332,8 @@ import Layout from "../layouts/Layout.astro";
 
   /* About */
   .about-section {
-    padding-top: 6rem;
-    padding-bottom: 4rem;
+    padding-top: 3rem;
+    padding-bottom: 2rem;
     position: relative;
     z-index: 1;
   }
@@ -312,9 +341,9 @@ import Layout from "../layouts/Layout.astro";
   .about-text {
     font-family: var(--font-sans);
     font-weight: 300;
-    font-size: 1rem;
-    line-height: 1.8;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.875rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.45);
   }
 
   .source-link {
@@ -334,8 +363,8 @@ import Layout from "../layouts/Layout.astro";
 
   /* Footer */
   .footer {
-    padding-top: 3rem;
-    padding-bottom: 2rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
     position: relative;
     z-index: 1;
     display: flex;

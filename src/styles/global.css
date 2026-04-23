@@ -91,6 +91,11 @@ html {
 
 body {
   background-color: var(--color-parchment);
+  background-image: url('/assets/parchment.webp');
+  background-size: 512px 512px;
+  background-repeat: repeat;
+  background-attachment: fixed;
+  background-blend-mode: multiply;
   color: var(--color-charcoal);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
