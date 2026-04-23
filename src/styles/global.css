@@ -47,6 +47,15 @@
   src: url('/fonts/cormorant-garamond-700.woff2') format('woff2');
 }
 
+/* JetBrains Mono — self-hosted (used by WASM terminal) */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('/fonts/jetbrains-mono-400.woff2') format('woff2');
+}
+
 /* Inter — self-hosted */
 @font-face {
   font-family: "Inter";

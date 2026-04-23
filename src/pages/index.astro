@@ -40,9 +40,9 @@ import Layout from "../layouts/Layout.astro";
           </div>
           <span class="terminal-name">bible-tui</span>
         </div>
-        <!-- Terminal body -->
-        <div class="terminal-body">
-          <div class="flex flex-col items-center gap-2">
+        <!-- Terminal body — WASM mounts here -->
+        <div id="terminal-body" class="terminal-body">
+          <div id="wasm-loading" class="flex flex-col items-center gap-2">
             <span class="terminal-loading">Loading Bible reader...</span>
             <span class="cursor-block" aria-hidden="true"></span>
           </div>
@@ -91,6 +91,44 @@ import Layout from "../layouts/Layout.astro";
     </footer>
   </div>
 </Layout>
+
+<script type="module">
+  import init from '/wasm/bible_web.js';
+
+  async function loadWasm() {
+    try {
+      await init('/wasm/bible_web_bg.wasm');
+      document.getElementById('wasm-loading')?.remove();
+
+      // Auto-focus the Ratzilla grid
+      const grid = document.getElementById('terminal-body_ratzilla_grid');
+      if (grid) grid.focus();
+    } catch (e) {
+      console.error('WASM load failed:', e);
+    }
+  }
+
+  loadWasm();
+
+  // Keyboard capture: preventDefault on keys the TUI uses, no stopPropagation
+  document.getElementById('terminal-body')?.addEventListener('keydown', (e) => {
+    const navigational = ['Tab','PageDown','PageUp','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
+    if (navigational.includes(e.key)) {
+      e.preventDefault();
+      return;
+    }
+    // Prevent browser find-in-page (/) and other single-key bindings when focused
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+    }
+  }, { capture: true });
+
+  // Re-focus grid on click anywhere in the reader section
+  document.getElementById('reader')?.addEventListener('click', () => {
+    const grid = document.getElementById('terminal-body_ratzilla_grid');
+    if (grid) grid.focus();
+  });
+</script>
 
 <script>
   document.querySelector('.cta-button')?.addEventListener('click', (e) => {
@@ -314,11 +352,30 @@ import Layout from "../layouts/Layout.astro";
   }
 
   .terminal-body {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 14px;
+    line-height: 1.2;
+    cursor: default;
+  }
+
+  /* Loading placeholder — centered before WASM loads */
+  .terminal-body > #wasm-loading {
+    position: absolute;
+    inset: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
-    aspect-ratio: 4 / 3;
+    gap: 0.5rem;
+  }
+
+  /* Ratzilla grid fills the container */
+  .terminal-body > pre {
+    margin: 0;
+    padding: 0;
   }
 
   @media (max-width: 640px) {
@@ -346,6 +403,12 @@ import Layout from "../layouts/Layout.astro";
     font-family: var(--font-mono);
     font-size: 0.875rem;
     color: #A89F91;
+  }
+
+  /* Ratzilla grid focus */
+  #terminal-body_ratzilla_grid:focus {
+    outline: 1px solid rgba(139, 64, 73, 0.35);
+    outline-offset: -1px;
   }
 
   /* Cursor blink */

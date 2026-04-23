@@ -1,0 +1,140 @@
+---
+// Phase 0 validation: test Ratzilla keyboard capture embedded in an Astro page
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ratzilla PoC — Keyboard Capture Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1A1816;
+      color: #A89F91;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+    h1 { font-size: 1.1rem; color: #F5F2EB; }
+    p { font-size: 0.85rem; opacity: 0.7; max-width: 600px; text-align: center; }
+    #test-grid-container {
+      width: 700px;
+      height: 400px;
+      border: 1px solid #2C2825;
+      background: #1A1816;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 14px;
+      line-height: 1.2;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+    }
+    #test-grid {
+      width: 100%;
+      height: 100%;
+    }
+    #focus-status {
+      font-size: 0.8rem;
+      opacity: 0.6;
+    }
+    .instructions {
+      font-size: 0.8rem;
+      background: #2C2825;
+      padding: 1rem 1.5rem;
+      border-radius: 4px;
+      max-width: 700px;
+      line-height: 1.8;
+    }
+    .pass { color: #4CAF50; }
+    .fail { color: #f44336; }
+    #test-results { font-size: 0.85rem; min-width: 500px; }
+    #test-results li { margin: 0.3rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Phase 0 — Ratzilla Keyboard Capture PoC</h1>
+
+  <div id="test-grid-container">
+    <div id="test-grid"></div>
+  </div>
+
+  <div id="focus-status">Click the terminal above to focus it</div>
+
+  <div class="instructions">
+    <strong>Test checklist</strong> — press each key while terminal is focused:<br/>
+    Each key should register in the terminal WITHOUT triggering browser default behavior
+    (no page scroll, no find-in-page, no tab focus change).
+  </div>
+
+  <ul id="test-results">
+    <li>j / k — vim scroll (should NOT scroll page)</li>
+    <li>Space — next chapter (should NOT scroll page)</li>
+    <li>Tab — nav panel (should NOT change browser focus)</li>
+    <li>/ — search (should NOT open browser find-in-page)</li>
+    <li>PageDown / PageUp — (should NOT scroll page)</li>
+    <li>Arrow keys — (should NOT scroll page)</li>
+    <li>: — command mode (should NOT do anything browser-level)</li>
+    <li>Ctrl+C — should register as Ctrl+Char('c')</li>
+  </ul>
+
+  <script type="module">
+    import init from '/wasm-poc/ratzilla_poc.js';
+
+    // Key prevention — capture phase so we intercept before Ratzilla's listener
+    const container = document.getElementById('test-grid-container');
+    const focusStatus = document.getElementById('focus-status');
+
+    container.addEventListener('keydown', (e) => {
+      // preventDefault() stops browser default behavior (scroll, find-in-page, tab focus change)
+      // but does NOT call stopPropagation() — the event still reaches Ratzilla's grid listener.
+      const preventKeys = [
+        'Tab', ' ', 'PageDown', 'PageUp',
+        'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+        'Home', 'End', '/', "'",
+      ];
+      if (preventKeys.includes(e.key)) {
+        e.preventDefault();
+      }
+      // Prevent browser interception of single printable chars (find-in-page, quickfind)
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+      }
+    }, { capture: true });
+
+    // Refocus terminal on container click
+    container.addEventListener('click', () => {
+      const grid = container.querySelector('[tabindex="0"]');
+      if (grid) grid.focus();
+    });
+
+    // Track focus state
+    container.addEventListener('focusin', () => {
+      focusStatus.textContent = '✓ Terminal focused — keyboard input active';
+      focusStatus.style.color = '#4CAF50';
+    });
+    container.addEventListener('focusout', () => {
+      focusStatus.textContent = 'Terminal unfocused — click to refocus';
+      focusStatus.style.color = '#f44336';
+    });
+
+    // Init WASM
+    await init('/wasm-poc/ratzilla_poc_bg.wasm');
+
+    // Auto-focus the Ratzilla grid after init
+    setTimeout(() => {
+      const grid = container.querySelector('[tabindex="0"]');
+      if (grid) {
+        grid.focus();
+        focusStatus.textContent = '✓ Terminal focused — keyboard input active';
+        focusStatus.style.color = '#4CAF50';
+      }
+    }, 100);
+  </script>
+</body>
+</html>
