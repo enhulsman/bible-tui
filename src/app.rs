@@ -3,7 +3,7 @@ use ratatui::Frame;
 
 use crate::action::Action;
 use crate::bible::loader;
-use crate::bible::model::{BibleData, BundledTranslation, VerseRef};
+use crate::bible::model::{BibleData, BundledTranslation, TranslationId, TranslationInfo, VerseRef};
 use crate::bible::reference;
 use crate::components::command_palette::CommandPalette;
 use crate::components::help_overlay::HelpOverlay;
@@ -12,6 +12,7 @@ use crate::components::reading_pane::ReadingPane;
 use crate::components::search_bar::SearchBar;
 use crate::components::status_bar::StatusBar;
 use crate::event::Event;
+use crate::import;
 use crate::search::index::SearchIndex;
 use crate::storage::bookmark::BookmarkStore;
 use crate::storage::state::AppState;
@@ -31,7 +32,9 @@ pub struct App {
     pub running: bool,
     pub mode: Mode,
     bible: BibleData,
-    current_translation: BundledTranslation,
+    current_translation: TranslationInfo,
+    available_translations: Vec<TranslationInfo>,
+    library_db: Option<rusqlite::Connection>,
     reading_pane: ReadingPane,
     nav_panel: NavPanel,
     search_bar: SearchBar,
@@ -47,11 +50,6 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        let current_translation = BundledTranslation::Kjv;
-        let bible = loader::load_bundled(current_translation);
-        let search_index = SearchIndex::build(&bible);
-        let mut reading_pane = ReadingPane::new();
-
         let storage = Storage::new().ok();
         let bookmarks = storage
             .as_ref()
@@ -61,6 +59,60 @@ impl App {
             .as_ref()
             .map(|s| AppState::load(&s.state_path()))
             .unwrap_or_default();
+
+        // Open library database (non-fatal)
+        let library_db: Option<rusqlite::Connection> = storage
+            .as_ref()
+            .and_then(|s| rusqlite::Connection::open(s.library_path()).ok());
+        if let Some(ref db) = library_db {
+            let _ = import::init_library(db);
+        }
+
+        // Build available translations: bundled + imported
+        let bundled = [BundledTranslation::Kjv, BundledTranslation::Web, BundledTranslation::Sv];
+        let mut available_translations: Vec<TranslationInfo> =
+            bundled.iter().map(|b| b.info()).collect();
+        if let Some(ref db) = library_db {
+            available_translations.extend(import::list_translations(db));
+        }
+
+        // Restore saved translation or default to KJV
+        let (bible, current_translation) = if let Some(ref saved_id) = app_state.last_translation {
+            // Try bundled first
+            if let Some(bt) = bundled
+                .iter()
+                .find(|b| b.abbreviation().eq_ignore_ascii_case(saved_id))
+            {
+                let bible = loader::load_bundled(*bt);
+                (bible, bt.info())
+            } else if let Some(ref db) = library_db {
+                // Try imported
+                if let Some(bible) = import::load_full_bible(db, saved_id) {
+                    let info = available_translations
+                        .iter()
+                        .find(|t| t.id == TranslationId::Imported(saved_id.clone()))
+                        .cloned()
+                        .unwrap_or_else(|| TranslationInfo {
+                            id: TranslationId::Imported(saved_id.clone()),
+                            name: saved_id.clone(),
+                            abbreviation: saved_id.to_uppercase(),
+                        });
+                    (bible, info)
+                } else {
+                    let bible = loader::load_bundled(BundledTranslation::Kjv);
+                    (bible, BundledTranslation::Kjv.info())
+                }
+            } else {
+                let bible = loader::load_bundled(BundledTranslation::Kjv);
+                (bible, BundledTranslation::Kjv.info())
+            }
+        } else {
+            let bible = loader::load_bundled(BundledTranslation::Kjv);
+            (bible, BundledTranslation::Kjv.info())
+        };
+
+        let search_index = SearchIndex::build(&bible);
+        let mut reading_pane = ReadingPane::new();
 
         let start_book = app_state.last_book;
         let start_chapter = app_state.last_chapter.max(1);
@@ -80,16 +132,26 @@ impl App {
             }
         }
 
+        let mut command_palette = CommandPalette::new();
+        command_palette.set_translations(
+            available_translations
+                .iter()
+                .map(|t| t.abbreviation.to_lowercase())
+                .collect(),
+        );
+
         Self {
             running: true,
             mode: Mode::Normal,
             bible,
             current_translation,
+            available_translations,
+            library_db,
             reading_pane,
             nav_panel: NavPanel::new(),
             search_bar: SearchBar::new(),
             search_index,
-            command_palette: CommandPalette::new(),
+            command_palette,
             show_nav: false,
             show_help: false,
             last_width: 80,
@@ -104,7 +166,7 @@ impl App {
             let state = AppState {
                 last_book: self.reading_pane.book_index(),
                 last_chapter: self.reading_pane.chapter_num(),
-                last_translation: Some(self.bible.translation.to_string()),
+                last_translation: Some(self.current_translation.id.to_string()),
             };
             let _ = state.save(&storage.state_path());
             let _ = self.bookmarks.save(&storage.bookmarks_path());
@@ -280,26 +342,49 @@ impl App {
     }
 
     fn switch_translation(&mut self, name: &str) {
-        let new_translation = match name.to_lowercase().as_str() {
-            "kjv" => Some(BundledTranslation::Kjv),
-            "web" => Some(BundledTranslation::Web),
-            "sv" => Some(BundledTranslation::Sv),
-            _ => None,
+        let name_lower = name.to_lowercase();
+
+        // Find matching translation in available list
+        let info = self
+            .available_translations
+            .iter()
+            .find(|t| t.abbreviation.to_lowercase() == name_lower)
+            .cloned();
+
+        let Some(info) = info else {
+            self.error_message = Some(format!("Unknown translation: {name}"));
+            return;
         };
 
-        if let Some(t) = new_translation {
-            if t != self.current_translation {
-                let book_idx = self.reading_pane.book_index();
-                let ch_num = self.reading_pane.chapter_num();
+        if info.id == self.current_translation.id {
+            return;
+        }
 
-                self.current_translation = t;
-                self.bible = loader::load_bundled(t);
-                self.search_index = SearchIndex::build(&self.bible);
+        let book_idx = self.reading_pane.book_index();
+        let ch_num = self.reading_pane.chapter_num();
 
-                // Navigate to the same position in the new translation
-                self.navigate_to(book_idx, ch_num);
+        match &info.id {
+            TranslationId::Bundled(bt) => {
+                self.bible = loader::load_bundled(*bt);
+            }
+            TranslationId::Imported(id) => {
+                if let Some(ref db) = self.library_db {
+                    if let Some(bible) = import::load_full_bible(db, id) {
+                        self.bible = bible;
+                    } else {
+                        self.error_message = Some(format!("Failed to load: {name}"));
+                        return;
+                    }
+                } else {
+                    self.error_message = Some("No library database".to_string());
+                    return;
+                }
             }
         }
+
+        self.current_translation = info;
+        self.search_index = SearchIndex::build(&self.bible);
+        self.navigate_to(book_idx, ch_num);
     }
 
     fn navigate_to(&mut self, book_index: u8, chapter: u16) {
@@ -379,7 +464,7 @@ impl App {
 
         self.reading_pane.render(frame, app_layout.reading_pane);
 
-        let translation = self.current_translation.abbreviation();
+        let translation = &self.current_translation.abbreviation;
         StatusBar::render(
             frame,
             app_layout.status_bar,
