@@ -1,0 +1,38 @@
+[package]
+name = "bible-tui"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "bible"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = { version = "0.30", features = ["underline-color"] }
+crossterm = "0.29"
+textwrap = { version = "0.16", features = ["unicode-width"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+postcard = { version = "1", features = ["alloc"] }
+color-eyre = "0.6"
+thiserror = "2"
+directories = "6"
+arboard = "3"
+chrono = { version = "0.4", features = ["serde"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+quick-xml = "0.37"
+serde_json = "1"
+unicode-width = "0.2"
+
+[build-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+quick-xml = { version = "0.37", features = ["serialize"] }
+postcard = { version = "1", features = ["alloc"] }
+
+[profile.release]
+opt-level = "z"
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
+panic = "abort"
