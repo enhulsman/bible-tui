@@ -7,7 +7,7 @@ interface Props {
 }
 
 const {
-  title = "Read Scripture — bible.arc8.dev",
+  title = "Read Scripture — bible.hulsman.dev",
   description = "A terminal Bible reader in your browser. Three translations, vim navigation, full-text search. Built with Rust and WebAssembly.",
 } = Astro.props;
 ---
@@ -19,12 +19,6 @@ const {
     <meta name="description" content={description} />
     <meta name="theme-color" content="#F5F2EB" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500&display=swap"
-      rel="stylesheet"
-    />
     <title>{title}</title>
   </head>
   <body class="min-h-screen">
