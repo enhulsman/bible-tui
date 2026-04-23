@@ -4,7 +4,6 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 
-use crate::bible::canon::CANON;
 use unicode_width::UnicodeWidthStr;
 
 use crate::bible::model::{Chapter, VerseSpan};
@@ -24,6 +23,8 @@ pub struct ReadingPane {
     book_index: u8,
     /// Current chapter number for the title.
     chapter_num: u16,
+    /// Translation-specific book name for the title.
+    book_name: String,
 }
 
 impl ReadingPane {
@@ -35,11 +36,13 @@ impl ReadingPane {
             visible_height: 0,
             book_index: 0,
             chapter_num: 1,
+            book_name: String::new(),
         }
     }
 
-    pub fn set_chapter(&mut self, book_index: u8, chapter: &Chapter, width: u16) {
+    pub fn set_chapter(&mut self, book_index: u8, book_name: &str, chapter: &Chapter, width: u16) {
         self.book_index = book_index;
+        self.book_name = book_name.to_string();
         self.chapter_num = chapter.number;
         self.scroll = 0;
         self.rebuild_lines(chapter, width);
@@ -56,12 +59,7 @@ impl ReadingPane {
         let mut all_lines: Vec<Line<'static>> = Vec::new();
 
         // Chapter title
-        let book_name = if (self.book_index as usize) < CANON.len() {
-            CANON[self.book_index as usize].name
-        } else {
-            "Unknown"
-        };
-        let title = format!("{} {}", book_name, self.chapter_num);
+        let title = format!("{} {}", self.book_name, self.chapter_num);
         all_lines.push(Line::from(Span::styled(title, Theme::chapter_title())));
         all_lines.push(Line::from(""));
 
@@ -188,6 +186,10 @@ impl ReadingPane {
         let paragraph = Paragraph::new(text).block(block);
 
         frame.render_widget(paragraph, area);
+    }
+
+    pub fn book_name(&self) -> &str {
+        &self.book_name
     }
 
     pub fn book_index(&self) -> u8 {

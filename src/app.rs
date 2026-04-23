@@ -66,14 +66,18 @@ impl App {
         let start_chapter = app_state.last_chapter.max(1);
 
         if let Some(book) = bible.books.get(start_book as usize) {
+            let name = book.name.clone();
             let ch_idx = (start_chapter as usize).saturating_sub(1);
             if let Some(chapter) = book.chapters.get(ch_idx) {
-                reading_pane.set_chapter(start_book, chapter, 80);
+                reading_pane.set_chapter(start_book, &name, chapter, 80);
             } else if let Some(chapter) = book.chapters.first() {
-                reading_pane.set_chapter(start_book, chapter, 80);
+                reading_pane.set_chapter(start_book, &name, chapter, 80);
             }
-        } else if let Some(chapter) = bible.books.first().and_then(|b| b.chapters.first()) {
-            reading_pane.set_chapter(0, chapter, 80);
+        } else if let Some(book) = bible.books.first() {
+            let name = book.name.clone();
+            if let Some(chapter) = book.chapters.first() {
+                reading_pane.set_chapter(0, &name, chapter, 80);
+            }
         }
 
         Self {
@@ -300,10 +304,11 @@ impl App {
 
     fn navigate_to(&mut self, book_index: u8, chapter: u16) {
         if let Some(book) = self.bible.books.get(book_index as usize) {
+            let name = book.name.clone();
             let ch_idx = (chapter as usize).saturating_sub(1);
             if let Some(ch) = book.chapters.get(ch_idx) {
                 self.reading_pane
-                    .set_chapter(book_index, ch, self.content_width());
+                    .set_chapter(book_index, &name, ch, self.content_width());
             }
         }
     }
@@ -316,20 +321,23 @@ impl App {
             let ch_idx = ch_num as i32 - 1 + delta;
 
             if ch_idx >= 0 && (ch_idx as usize) < book.chapters.len() {
+                let name = book.name.clone();
                 let chapter = &book.chapters[ch_idx as usize];
                 self.reading_pane
-                    .set_chapter(book_idx as u8, chapter, self.content_width());
+                    .set_chapter(book_idx as u8, &name, chapter, self.content_width());
             } else if delta > 0 && book_idx + 1 < self.bible.books.len() {
                 let next_book = &self.bible.books[book_idx + 1];
+                let name = next_book.name.clone();
                 if let Some(chapter) = next_book.chapters.first() {
                     self.reading_pane
-                        .set_chapter((book_idx + 1) as u8, chapter, self.content_width());
+                        .set_chapter((book_idx + 1) as u8, &name, chapter, self.content_width());
                 }
             } else if delta < 0 && book_idx > 0 {
                 let prev_book = &self.bible.books[book_idx - 1];
+                let name = prev_book.name.clone();
                 if let Some(chapter) = prev_book.chapters.last() {
                     self.reading_pane
-                        .set_chapter((book_idx - 1) as u8, chapter, self.content_width());
+                        .set_chapter((book_idx - 1) as u8, &name, chapter, self.content_width());
                 }
             }
         }
@@ -366,7 +374,7 @@ impl App {
         let app_layout = layout::compute_layout(area, self.show_nav);
 
         if let Some(nav_area) = app_layout.nav_panel {
-            self.nav_panel.render(frame, nav_area);
+            self.nav_panel.render(frame, nav_area, &self.bible.books);
         }
 
         self.reading_pane.render(frame, app_layout.reading_pane);
@@ -375,7 +383,7 @@ impl App {
         StatusBar::render(
             frame,
             app_layout.status_bar,
-            self.reading_pane.book_index(),
+            self.reading_pane.book_name(),
             self.reading_pane.chapter_num(),
             self.reading_pane.current_verse_approx(),
             translation,
@@ -384,7 +392,7 @@ impl App {
 
         // Overlays
         if self.mode == Mode::Search {
-            self.search_bar.render(frame, area);
+            self.search_bar.render(frame, area, &self.bible.books);
         }
 
         if self.mode == Mode::Command {

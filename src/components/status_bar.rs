@@ -4,7 +4,6 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use ratatui::Frame;
 
-use crate::bible::canon::CANON;
 use crate::ui::theme::Theme;
 
 pub struct StatusBar;
@@ -13,18 +12,12 @@ impl StatusBar {
     pub fn render(
         frame: &mut Frame,
         area: Rect,
-        book_index: u8,
+        book_name: &str,
         chapter: u16,
         verse: u8,
         translation: &str,
         error: Option<&str>,
     ) {
-        let book_name = if (book_index as usize) < CANON.len() {
-            CANON[book_index as usize].name
-        } else {
-            "?"
-        };
-
         let position = format!(" {} {}:{}", book_name, chapter, verse);
 
         let spans = if let Some(err) = error {

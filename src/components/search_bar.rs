@@ -5,7 +5,7 @@ use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragra
 use ratatui::Frame;
 
 use crate::action::Action;
-use crate::bible::canon::CANON;
+use crate::bible::model::Book;
 use crate::search::index::{SearchIndex, SearchResult};
 
 pub struct SearchBar {
@@ -153,7 +153,7 @@ impl SearchBar {
         })
     }
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
+    pub fn render(&mut self, frame: &mut Frame, area: Rect, books: &[Book]) {
         // Search overlay: input bar at top + results below
         let popup_height = (self.results.len() as u16 + 3).min(area.height.saturating_sub(4));
         let popup_width = area.width.min(70);
@@ -191,11 +191,10 @@ impl SearchBar {
                 .results
                 .iter()
                 .map(|r| {
-                    let book_name = if (r.verse_ref.book_index as usize) < CANON.len() {
-                        CANON[r.verse_ref.book_index as usize].name
-                    } else {
-                        "?"
-                    };
+                    let book_name = books
+                        .get(r.verse_ref.book_index as usize)
+                        .map(|b| b.name.as_str())
+                        .unwrap_or("?");
                     let ref_str = format!(
                         "{} {}:{}",
                         book_name, r.verse_ref.chapter, r.verse_ref.verse
