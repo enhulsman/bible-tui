@@ -5,6 +5,8 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 
 use crate::bible::canon::CANON;
+use unicode_width::UnicodeWidthStr;
+
 use crate::bible::model::{Chapter, VerseSpan};
 use crate::ui::theme::Theme;
 use crate::ui::wrap::{superscript_number, wrap_spans};
@@ -63,6 +65,13 @@ impl ReadingPane {
         all_lines.push(Line::from(Span::styled(title, Theme::chapter_title())));
         all_lines.push(Line::from(""));
 
+        // Compute uniform indent width from max verse number.
+        // Superscript digits are each 1 display column (UAX #11), so
+        // format!("{:<width$}", s) pads correctly with spaces.
+        let max_verse = chapter.verses.last().map(|v| v.number).unwrap_or(1);
+        let indent_width = superscript_number(max_verse).width() + 1; // +1 for space after number
+        let use_indent = content_width > indent_width as u16 + 10;
+
         for verse in &chapter.verses {
             // Check for section headings before this verse
             for heading in &chapter.headings {
@@ -76,29 +85,48 @@ impl ReadingPane {
                 }
             }
 
-            // Build spans for this verse: superscript number + text
-            let mut spans: Vec<(String, Style)> = Vec::new();
-
-            let num_str = format!("{} ", superscript_number(verse.number));
-            spans.push((num_str, Theme::verse_number()));
-
+            // Build text spans (without verse number)
+            let mut text_spans: Vec<(String, Style)> = Vec::new();
             for span in &verse.spans {
                 match span {
                     VerseSpan::Plain(text) => {
-                        spans.push((text.clone(), Theme::verse_text()));
+                        text_spans.push((text.clone(), Theme::verse_text()));
                     }
                     VerseSpan::RedLetter(text) => {
-                        spans.push((text.clone(), Theme::red_letter()));
+                        text_spans.push((text.clone(), Theme::red_letter()));
                     }
                     VerseSpan::Selah => {
-                        spans.push(("Selah".to_string(), Theme::section_heading()));
+                        text_spans.push(("Selah".to_string(), Theme::section_heading()));
                     }
                 }
             }
-            spans.push((" ".to_string(), Style::default()));
+            text_spans.push((" ".to_string(), Style::default()));
 
-            let wrapped = wrap_spans(&spans, content_width);
-            all_lines.extend(wrapped);
+            if use_indent {
+                // Right-pad verse number to uniform indent width
+                let num_str = format!("{:<width$}", superscript_number(verse.number), width = indent_width);
+                let text_width = content_width.saturating_sub(indent_width as u16);
+                let wrapped = wrap_spans(&text_spans, text_width);
+
+                for (i, line) in wrapped.into_iter().enumerate() {
+                    let prefix = if i == 0 {
+                        Span::styled(num_str.clone(), Theme::verse_number())
+                    } else {
+                        Span::raw(" ".repeat(indent_width))
+                    };
+                    let mut spans = vec![prefix];
+                    spans.extend(line.spans);
+                    all_lines.push(Line::from(spans));
+                }
+            } else {
+                // Narrow terminal fallback: no hanging indent
+                let mut spans: Vec<(String, Style)> = Vec::new();
+                let num_str = format!("{} ", superscript_number(verse.number));
+                spans.push((num_str, Theme::verse_number()));
+                spans.extend(text_spans);
+                let wrapped = wrap_spans(&spans, content_width);
+                all_lines.extend(wrapped);
+            }
         }
 
         self.total_lines = all_lines.len() as u16;

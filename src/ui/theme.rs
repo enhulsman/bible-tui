@@ -4,7 +4,7 @@ pub struct Theme;
 
 impl Theme {
     pub fn verse_number() -> Style {
-        Style::default().fg(Color::DarkGray)
+        Style::default().fg(Color::Cyan)
     }
 
     pub fn verse_text() -> Style {
