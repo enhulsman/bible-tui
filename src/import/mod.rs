@@ -4,7 +4,10 @@ pub mod zefania;
 
 use std::path::Path;
 
-use crate::bible::model::{Chapter, SectionHeading, Verse, VerseSpan};
+use crate::bible::canon::CANON;
+use crate::bible::model::{
+    BibleData, Book, Chapter, SectionHeading, TranslationId, TranslationInfo, Verse, VerseSpan,
+};
 
 #[derive(Debug)]
 pub enum ImportFormat {
@@ -23,7 +26,6 @@ pub struct ImportedTranslation {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct ImportedBook {
     pub number: u8, // 1-66
     pub name: String,
@@ -101,6 +103,12 @@ pub fn init_library(db: &rusqlite::Connection) -> color_eyre::Result<()> {
             chapter INTEGER NOT NULL,
             before_verse INTEGER NOT NULL,
             text TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS book_names (
+            translation TEXT NOT NULL,
+            book INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            PRIMARY KEY (translation, book)
         );",
     )?;
     Ok(())
@@ -123,6 +131,10 @@ fn store_translation(
         "DELETE FROM translations WHERE id = ?1",
         [&translation.id],
     )?;
+    db.execute(
+        "DELETE FROM book_names WHERE translation = ?1",
+        [&translation.id],
+    )?;
 
     db.execute(
         "INSERT INTO translations (id, name, abbreviation, language, source_format)
@@ -138,6 +150,10 @@ fn store_translation(
 
     let tx = db.unchecked_transaction()?;
     for book in &translation.books {
+        tx.execute(
+            "INSERT OR REPLACE INTO book_names (translation, book, name) VALUES (?1, ?2, ?3)",
+            rusqlite::params![translation.id, book.number, book.name],
+        )?;
         for chapter in &book.chapters {
             for verse in &chapter.verses {
                 let text = verse.text();
@@ -172,6 +188,197 @@ fn store_translation(
     }
     tx.commit()?;
     Ok(())
+}
+
+/// List all imported translations from the library database.
+pub fn list_translations(db: &rusqlite::Connection) -> Vec<TranslationInfo> {
+    let mut stmt = match db.prepare("SELECT id, name, abbreviation FROM translations") {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    let rows = match stmt.query_map([], |row| {
+        let id: String = row.get(0)?;
+        let name: String = row.get(1)?;
+        let abbreviation: String = row.get(2)?;
+        Ok(TranslationInfo {
+            id: TranslationId::Imported(id),
+            name,
+            abbreviation,
+        })
+    }) {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+    rows.filter_map(|r| r.ok()).collect()
+}
+
+/// Load an entire imported translation as BibleData from SQLite.
+pub fn load_full_bible(db: &rusqlite::Connection, id: &str) -> Option<BibleData> {
+    // Load book names for this translation
+    let mut book_name_map = std::collections::HashMap::new();
+    if let Ok(mut stmt) =
+        db.prepare("SELECT book, name FROM book_names WHERE translation = ?1")
+    {
+        if let Ok(rows) = stmt.query_map(rusqlite::params![id], |row| {
+            Ok((row.get::<_, u8>(0)?, row.get::<_, String>(1)?))
+        }) {
+            for row in rows.flatten() {
+                book_name_map.insert(row.0, row.1);
+            }
+        }
+    }
+
+    // Bulk load all verses
+    let mut stmt = db
+        .prepare(
+            "SELECT book, chapter, verse, text, is_red_letter FROM verses \
+             WHERE translation = ?1 ORDER BY book, chapter, verse",
+        )
+        .ok()?;
+
+    let rows: Vec<(u8, u16, u8, String, bool)> = stmt
+        .query_map(rusqlite::params![id], |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+            ))
+        })
+        .ok()?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    if rows.is_empty() {
+        return None;
+    }
+
+    // Bulk load all headings
+    let mut heading_stmt = db
+        .prepare(
+            "SELECT book, chapter, before_verse, text FROM headings \
+             WHERE translation = ?1 ORDER BY book, chapter, before_verse",
+        )
+        .ok()?;
+
+    let heading_rows: Vec<(u8, u16, u8, String)> = heading_stmt
+        .query_map(rusqlite::params![id], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })
+        .ok()?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    // Group into books/chapters
+    let mut books: Vec<Book> = Vec::new();
+    let mut current_book_num: u8 = 0;
+    let mut current_ch_num: u16 = 0;
+    let mut current_verses: Vec<Verse> = Vec::new();
+    let mut current_chapters: Vec<Chapter> = Vec::new();
+
+    for (book_num, ch_num, verse_num, text, is_red) in &rows {
+        // Skip invalid book numbers (deuterocanonical etc.)
+        if *book_num == 0 || *book_num > 66 {
+            continue;
+        }
+
+        if *book_num != current_book_num {
+            // Finish previous chapter + book
+            if !current_verses.is_empty() {
+                let headings = collect_headings(&heading_rows, current_book_num, current_ch_num);
+                current_chapters.push(Chapter {
+                    number: current_ch_num,
+                    verses: std::mem::take(&mut current_verses),
+                    headings,
+                });
+            }
+            if current_book_num != 0 && !current_chapters.is_empty() {
+                let index = current_book_num - 1;
+                let name = book_name_map
+                    .get(&current_book_num)
+                    .cloned()
+                    .unwrap_or_else(|| CANON[index as usize].name.to_string());
+                books.push(Book {
+                    name,
+                    code: CANON[index as usize].code.to_string(),
+                    index,
+                    chapters: std::mem::take(&mut current_chapters),
+                });
+            }
+            current_book_num = *book_num;
+            current_ch_num = *ch_num;
+        } else if *ch_num != current_ch_num {
+            // Finish previous chapter
+            if !current_verses.is_empty() {
+                let headings = collect_headings(&heading_rows, current_book_num, current_ch_num);
+                current_chapters.push(Chapter {
+                    number: current_ch_num,
+                    verses: std::mem::take(&mut current_verses),
+                    headings,
+                });
+            }
+            current_ch_num = *ch_num;
+        }
+
+        let span = if *is_red {
+            VerseSpan::RedLetter(text.clone())
+        } else {
+            VerseSpan::Plain(text.clone())
+        };
+        current_verses.push(Verse {
+            number: *verse_num,
+            spans: vec![span],
+            paragraph_break: false,
+        });
+    }
+
+    // Flush last chapter + book
+    if !current_verses.is_empty() {
+        let headings = collect_headings(&heading_rows, current_book_num, current_ch_num);
+        current_chapters.push(Chapter {
+            number: current_ch_num,
+            verses: current_verses,
+            headings,
+        });
+    }
+    if current_book_num != 0 && !current_chapters.is_empty() {
+        let index = current_book_num - 1;
+        let name = book_name_map
+            .get(&current_book_num)
+            .cloned()
+            .unwrap_or_else(|| CANON[index as usize].name.to_string());
+        books.push(Book {
+            name,
+            code: CANON[index as usize].code.to_string(),
+            index,
+            chapters: current_chapters,
+        });
+    }
+
+    if books.is_empty() {
+        return None;
+    }
+
+    Some(BibleData {
+        translation: TranslationId::Imported(id.to_string()),
+        books,
+    })
+}
+
+fn collect_headings(
+    heading_rows: &[(u8, u16, u8, String)],
+    book: u8,
+    chapter: u16,
+) -> Vec<SectionHeading> {
+    heading_rows
+        .iter()
+        .filter(|(b, c, _, _)| *b == book && *c == chapter)
+        .map(|(_, _, before_verse, text)| SectionHeading {
+            before_verse: *before_verse,
+            text: text.clone(),
+        })
+        .collect()
 }
 
 /// Load a chapter from the library database.
