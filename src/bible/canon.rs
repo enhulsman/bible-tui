@@ -86,11 +86,26 @@ pub const CANON: [BookInfo; 66] = [
 ];
 
 /// Find a book index by name, abbreviation, or code (case-insensitive).
+/// Falls back to unique prefix matching on book names.
 pub fn find_book(query: &str) -> Option<usize> {
     let q = query.to_lowercase();
-    CANON.iter().position(|b| {
+    // Exact match on name, abbreviation, or code
+    if let Some(pos) = CANON.iter().position(|b| {
         b.name.to_lowercase() == q
             || b.abbreviation.to_lowercase() == q
             || b.code.to_lowercase() == q
-    })
+    }) {
+        return Some(pos);
+    }
+    // Prefix match on name (must be unique)
+    let matches: Vec<usize> = CANON
+        .iter()
+        .enumerate()
+        .filter(|(_, b)| b.name.to_lowercase().starts_with(&q))
+        .map(|(i, _)| i)
+        .collect();
+    if matches.len() == 1 {
+        return Some(matches[0]);
+    }
+    None
 }
