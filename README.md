@@ -1,6 +1,8 @@
 # bible-tui
 
-A terminal Bible reader with vim-like navigation, built with Rust and ratatui.
+A terminal Bible reader with vim-like navigation, built with Rust and ratatui. Also runs in the browser via WebAssembly.
+
+**[Try it in your browser](https://bible.hulsman.dev)**
 
 ## Features
 
@@ -9,14 +11,40 @@ A terminal Bible reader with vim-like navigation, built with Rust and ratatui.
 - **Command autocomplete** — dropdown suggestions for commands, translations, and book names
 - **Full-text search** — in-memory search index, min 2 characters, results across all books
 - **Bookmarks** — save and recall verse positions
-- **Vim-like navigation** — `j/k` scrolling, `g/G` jump, `:goto` command mode
+- **Vim-like navigation** — `h/l` chapter switching, `j/k` scrolling, `g/G` jump, `:goto` command mode
 - **State persistence** — remembers last position and translation across sessions
 - **Fast startup** — bundled translations serialized as postcard binary, deserialized instantly
+- **Web version** — runs in-browser via WASM with the same interface and all three translations
+
+## Project Structure
+
+```
+bible-tui/
+  bible-core/     Shared library: app logic, components, Bible data model
+  bible-native/   Native TUI binary (ratatui + crossterm)
+  bible-web/      WASM entry point (ratatui + ratzilla)
+  web/            Astro frontend hosting the WASM build
+  data/           Bundled translation sources (KJV, WEB, SV)
+  scripts/        Build scripts (WASM packaging)
+  tools/          Utility scripts (HSV PDF converter)
+```
 
 ## Installation
 
+### Native
+
 ```
-cargo install --path .
+cargo install --path bible-native
+```
+
+### Web (development)
+
+```
+# Build the WASM binary
+./scripts/build-wasm.sh
+
+# Start the dev server
+cd web && npm install && npm run dev
 ```
 
 ## Usage
@@ -55,18 +83,18 @@ bible import ~/.local/share/bible-tui/translations/hsv.json
 
 ### Reading
 
-| Key                    | Action                  |
-|------------------------|-------------------------|
-| `j` / `k` / `↑` / `↓` | Scroll up/down          |
-| `f` / `b` / PgDn/PgUp | Page scroll             |
-| `g` / `G`              | Top / Bottom            |
-| Space / Backspace      | Next / Previous chapter |
-| `/`                    | Search                  |
-| `n` / `N`              | Next / Prev result      |
-| `:`                    | Command mode            |
-| `B`                    | Bookmark current verse  |
-| `?`                    | Toggle help overlay     |
-| `q` / Ctrl+C           | Quit                    |
+| Key                            | Action                  |
+|--------------------------------|-------------------------|
+| `j` / `k` / `↑` / `↓`        | Scroll up/down          |
+| `f` / `b` / PgDn / PgUp       | Page scroll             |
+| `g` / `G`                      | Top / Bottom            |
+| `h` / `l` / `←` / `→` / Space / BS | Next / Previous chapter |
+| `/`                            | Search                  |
+| `n` / `N`                      | Next / Prev result      |
+| `:`                            | Command mode            |
+| `B`                            | Bookmark current verse  |
+| `?`                            | Toggle help overlay     |
+| `q` / Ctrl+C                   | Quit                    |
 
 ### Navigation Panel (Tab)
 
@@ -90,12 +118,12 @@ bible import ~/.local/share/bible-tui/translations/hsv.json
 
 ### Commands (:)
 
-| Key            | Action                          |
-|----------------|---------------------------------|
-| Tab            | Accept autocomplete suggestion  |
-| `↑` / `↓`     | Navigate suggestions            |
-| Enter          | Execute command                 |
-| Esc            | Close command mode              |
+| Key        | Action                         |
+|------------|--------------------------------|
+| Tab        | Accept autocomplete suggestion |
+| `↑` / `↓` | Navigate suggestions           |
+| Enter      | Execute command                |
+| Esc        | Close command mode             |
 
 ## Commands
 
@@ -113,9 +141,15 @@ bible import ~/.local/share/bible-tui/translations/hsv.json
   bulk-loaded into memory on switch with translation-specific book names
 - **Pre-wrapped text** — text is wrapped before rendering to work around
   ratatui's line-based scrolling, so scroll offset maps 1:1 to screen rows
+- **Line-to-verse mapping** — each display line tracks its verse number for accurate
+  status bar display and bookmarks, regardless of chapter length
 - **In-memory search index** — full-text search built on translation load, no external index files
+- **Shared core** — `bible-core` contains all app logic and renders via ratatui;
+  `bible-native` and `bible-web` provide platform-specific backends
 
 ## Tech Stack
+
+### Native
 
 [ratatui](https://ratatui.rs) ·
 [crossterm](https://docs.rs/crossterm) ·
@@ -123,3 +157,10 @@ bible import ~/.local/share/bible-tui/translations/hsv.json
 [rusqlite](https://docs.rs/rusqlite) ·
 [postcard](https://docs.rs/postcard) ·
 [quick-xml](https://docs.rs/quick-xml)
+
+### Web
+
+[ratzilla](https://github.com/ratatui/ratzilla) ·
+[wasm-bindgen](https://rustwasm.github.io/wasm-bindgen/) ·
+[Astro](https://astro.build) ·
+[Tailwind CSS](https://tailwindcss.com)
