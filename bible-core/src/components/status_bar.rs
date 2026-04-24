@@ -36,6 +36,8 @@ impl StatusBar {
                 Span::styled(" scroll  ", Theme::status_hint()),
                 Span::styled("/", Theme::status_key()),
                 Span::styled("search  ", Theme::status_hint()),
+                Span::styled("g", Theme::status_key()),
+                Span::styled(" go to  ", Theme::status_hint()),
                 Span::styled("Tab", Theme::status_key()),
                 Span::styled(" nav  ", Theme::status_hint()),
                 Span::styled("B", Theme::status_key()),

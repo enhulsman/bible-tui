@@ -28,15 +28,15 @@ impl Theme {
     }
 
     pub fn status_bar() -> Style {
-        Style::default().bg(Color::DarkGray).fg(Color::White)
+        Style::default().bg(Color::Rgb(40, 38, 35)).fg(Color::Rgb(168, 159, 145))
     }
 
     pub fn status_key() -> Style {
-        Style::default().fg(Color::Yellow)
+        Style::default().bg(Color::Rgb(40, 38, 35)).fg(Color::Rgb(210, 170, 90))
     }
 
     pub fn status_hint() -> Style {
-        Style::default().fg(Color::Gray)
+        Style::default().bg(Color::Rgb(40, 38, 35)).fg(Color::Rgb(135, 128, 118))
     }
 
     pub fn nav_selected() -> Style {

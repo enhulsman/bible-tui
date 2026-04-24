@@ -31,7 +31,7 @@ import Layout from "../layouts/Layout.astro";
   <!-- Transition + Terminal section -->
   <div class="transition-wrapper" style="background:#1A1816">
     <div class="lightbeam-backdrop" aria-hidden="true"></div>
-    <div class="mx-auto max-w-[900px] px-6">
+    <div class="mx-auto max-w-[1024px] px-6">
       <!-- Terminal container -->
       <div id="reader" class="terminal-container">
         <!-- Title bar -->
@@ -53,18 +53,6 @@ import Layout from "../layouts/Layout.astro";
         </div>
       </div>
 
-      <!-- Keyboard hints -->
-      <div class="kbd-hints">
-        <span>j/k scroll</span>
-        <span class="kbd-sep">·</span>
-        <span>/ search</span>
-        <span class="kbd-sep">·</span>
-        <span>g go to</span>
-        <span class="kbd-sep">·</span>
-        <span>b bookmarks</span>
-        <span class="kbd-sep">·</span>
-        <span>? help</span>
-      </div>
     </div>
 
     <!-- About section -->
@@ -431,8 +419,9 @@ import Layout from "../layouts/Layout.astro";
 
   /* Ratzilla grid focus */
   #terminal-body_ratzilla_grid:focus {
-    outline: 1px solid rgba(139, 64, 73, 0.35);
-    outline-offset: -1px;
+    outline: none;
+    box-shadow: inset 0 0 0 1px rgba(139, 64, 73, 0.25),
+                0 0 12px rgba(139, 64, 73, 0.08);
   }
 
   /* Cursor blink */
@@ -449,22 +438,6 @@ import Layout from "../layouts/Layout.astro";
     50% { opacity: 0; }
   }
 
-  /* Keyboard hints */
-  .kbd-hints {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-top: 6rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.3);
-  }
-
-  .kbd-sep {
-    color: rgba(255, 255, 255, 0.15);
-  }
 
   /* About */
   .about-section {
