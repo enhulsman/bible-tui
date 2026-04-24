@@ -8,7 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 bible-core = { path = "../bible-core", features = ["wasm"] }
-ratzilla = { git = "https://github.com/enhulsman/ratzilla.git", rev = "4a2d91bc42162c6952df936d51b8561657457c89" }
+ratzilla = { git = "https://github.com/enhulsman/ratzilla.git", rev = "3ab5d93" }
 wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features = [
     "Window", "Document", "HtmlElement", "Storage", "Performance",
