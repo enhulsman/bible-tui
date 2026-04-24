@@ -205,7 +205,7 @@ impl CommandPalette {
         let suggestion_height = if self.suggestions.is_empty() {
             0
         } else {
-            (self.suggestions.len() as u16).min(area.height.saturating_sub(6))
+            (self.suggestions.len() as u16 + 1).min(area.height.saturating_sub(6))
         };
         let total_height = 3 + suggestion_height;
         let popup = Rect::new(x, 2, width, total_height);
