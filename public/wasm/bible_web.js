@@ -196,10 +196,6 @@ function __wbg_get_imports() {
             const ret = arg0.getTime();
             return ret;
         },
-        __wbg_height_3234dfa2a4da7b4a: function() { return handleError(function (arg0) {
-            const ret = arg0.height;
-            return ret;
-        }, arguments); },
         __wbg_height_75b0d10baf97e535: function(arg0) {
             const ret = arg0.height;
             return ret;
@@ -228,10 +224,6 @@ function __wbg_get_imports() {
             const len1 = WASM_VECTOR_LEN;
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-        },
-        __wbg_navigator_9cebf56f28aa719b: function(arg0) {
-            const ret = arg0.navigator;
-            return ret;
         },
         __wbg_new_0_1dcafdf5e786e876: function() {
             const ret = new Date();
@@ -265,10 +257,6 @@ function __wbg_get_imports() {
         }, arguments); },
         __wbg_requestAnimationFrame_206c97f410e7a383: function() { return handleError(function (arg0, arg1) {
             const ret = arg0.requestAnimationFrame(arg1);
-            return ret;
-        }, arguments); },
-        __wbg_screen_596be4cb34f5852d: function() { return handleError(function (arg0) {
-            const ret = arg0.screen;
             return ret;
         }, arguments); },
         __wbg_setAttribute_f20d3b966749ab64: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4) {
@@ -308,17 +296,6 @@ function __wbg_get_imports() {
             const ret = typeof window === 'undefined' ? null : window;
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
         },
-        __wbg_userAgent_161a5f2d2a8dee61: function() { return handleError(function (arg0, arg1) {
-            const ret = arg1.userAgent;
-            const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len1 = WASM_VECTOR_LEN;
-            getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-            getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-        }, arguments); },
-        __wbg_width_0f53f9bb8b240a4e: function() { return handleError(function (arg0) {
-            const ret = arg0.width;
-            return ret;
-        }, arguments); },
         __wbg_width_f933723cb0daf368: function(arg0) {
             const ret = arg0.width;
             return ret;
