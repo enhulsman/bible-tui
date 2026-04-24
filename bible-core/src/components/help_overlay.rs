@@ -9,7 +9,7 @@ const HELP_LINES: &[(&str, &str)] = &[
     ("j / k / ↑ / ↓", "Scroll up/down"),
     ("f / b / PgDn / PgUp", "Page scroll"),
     ("g / G", "Top / Bottom"),
-    ("Space / Backspace", "Next / Previous chapter"),
+    ("h / l / ← / → / Sp / BS", "Next / Previous chapter"),
     ("/", "Search"),
     ("n / N", "Next / Prev search result"),
     (":", "Command mode"),
