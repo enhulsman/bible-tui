@@ -5,7 +5,10 @@ import Layout from "../layouts/Layout.astro";
 <Layout>
   <!-- Header -->
   <header class="header-bar px-6 py-4 md:px-12 md:py-6">
-    <span class="wordmark">bible.hulsman.dev</span>
+    <div class="wordmark-group">
+      <img src="/assets/logo.png" alt="" class="header-logo" />
+      <span class="wordmark">bible.hulsman.dev</span>
+    </div>
   </header>
 
   <!-- Hero section -->
@@ -34,11 +37,12 @@ import Layout from "../layouts/Layout.astro";
         <!-- Title bar -->
         <div class="terminal-titlebar">
           <div class="flex items-center gap-1.5">
-            <span class="traffic-dot"></span>
-            <span class="traffic-dot"></span>
-            <span class="traffic-dot"></span>
+            <span class="traffic-dot dot-close"></span>
+            <span class="traffic-dot dot-minimize"></span>
+            <span class="traffic-dot dot-maximize"></span>
           </div>
           <span class="terminal-name">bible-tui</span>
+          <div class="terminal-titlebar-spacer"></div>
         </div>
         <!-- Terminal body — WASM mounts here -->
         <div id="terminal-body" class="terminal-body">
@@ -173,6 +177,19 @@ import Layout from "../layouts/Layout.astro";
   }
 
   /* Wordmark */
+  .wordmark-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .header-logo {
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    opacity: 0.65;
+  }
+
   .wordmark {
     font-family: var(--font-sans);
     font-size: 14px;
@@ -339,16 +356,23 @@ import Layout from "../layouts/Layout.astro";
 
   .traffic-dot {
     display: block;
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
   }
+
+  .dot-close { background: #FF5F57; }
+  .dot-minimize { background: #FEBC2E; }
+  .dot-maximize { background: #28C840; }
 
   .terminal-name {
     font-family: var(--font-mono);
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.35);
+  }
+
+  .terminal-titlebar-spacer {
+    width: 52px;
   }
 
   .terminal-body {
