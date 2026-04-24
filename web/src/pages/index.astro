@@ -1,0 +1,505 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout>
+  <!-- Header -->
+  <header class="header-bar px-6 py-4 md:px-12 md:py-6">
+    <span class="wordmark">bible.hulsman.dev</span>
+  </header>
+
+  <!-- Hero section -->
+  <section class="hero-section px-6">
+    <div class="mx-auto max-w-[720px] text-center">
+      <h1 class="verse-heading">
+        "In the beginning was the Word,<br>
+        and the Word was with God,<br>
+        and the Word was God."
+      </h1>
+      <p class="verse-ref">— John 1:1, KJV</p>
+      <div class="divider"></div>
+      <p class="subtitle">
+        A terminal Bible reader in your browser. Three translations, vim navigation, full-text search.
+      </p>
+      <a href="#reader" class="cta-button">Read the Word</a>
+    </div>
+  </section>
+
+  <!-- Transition + Terminal section -->
+  <div class="transition-wrapper" style="background:#1A1816">
+    <div class="lightbeam-backdrop" aria-hidden="true"></div>
+    <div class="mx-auto max-w-[900px] px-6">
+      <!-- Terminal container -->
+      <div id="reader" class="terminal-container">
+        <!-- Title bar -->
+        <div class="terminal-titlebar">
+          <div class="flex items-center gap-1.5">
+            <span class="traffic-dot"></span>
+            <span class="traffic-dot"></span>
+            <span class="traffic-dot"></span>
+          </div>
+          <span class="terminal-name">bible-tui</span>
+        </div>
+        <!-- Terminal body — WASM mounts here -->
+        <div id="terminal-body" class="terminal-body">
+          <div id="wasm-loading" class="flex flex-col items-center gap-2">
+            <span class="terminal-loading">Loading Bible reader...</span>
+            <span class="cursor-block" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Keyboard hints -->
+      <div class="kbd-hints">
+        <span>j/k scroll</span>
+        <span class="kbd-sep">·</span>
+        <span>/ search</span>
+        <span class="kbd-sep">·</span>
+        <span>g go to</span>
+        <span class="kbd-sep">·</span>
+        <span>b bookmarks</span>
+        <span class="kbd-sep">·</span>
+        <span>? help</span>
+      </div>
+    </div>
+
+    <!-- About section -->
+    <section class="about-section">
+      <div class="mx-auto max-w-[560px] px-6 text-center">
+        <p class="about-text">
+          Three translations to explore — KJV, WEB, and the Dutch Statenvertaling — with the warmth of a terminal and the ease of your browser. Built with Rust and WebAssembly. Nothing leaves your device.
+        </p>
+        <a
+          href="https://github.com/enhulsman/bible-tui"
+          class="source-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >View source on GitHub</a>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>Part of the hulsman.dev network</span>
+      <span class="footer-sep">·</span>
+      <a
+        href="https://hulsman.dev"
+        class="footer-link"
+        target="_blank"
+        rel="noopener noreferrer"
+      >hulsman.dev</a>
+    </footer>
+  </div>
+</Layout>
+
+<script type="module">
+  import init from '/wasm/bible_web.js';
+
+  async function loadWasm() {
+    try {
+      await init('/wasm/bible_web_bg.wasm');
+      document.getElementById('wasm-loading')?.remove();
+
+      // Auto-focus the Ratzilla grid
+      const grid = document.getElementById('terminal-body_ratzilla_grid');
+      if (grid) grid.focus();
+    } catch (e) {
+      console.error('WASM load failed:', e);
+    }
+  }
+
+  loadWasm();
+
+  // Keyboard capture: preventDefault on keys the TUI uses, no stopPropagation
+  document.getElementById('terminal-body')?.addEventListener('keydown', (e) => {
+    const navigational = ['Tab','PageDown','PageUp','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
+    if (navigational.includes(e.key)) {
+      e.preventDefault();
+      return;
+    }
+    // Prevent browser find-in-page (/) and other single-key bindings when focused
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+    }
+  }, { capture: true });
+
+  // Re-focus grid on click anywhere in the reader section
+  document.getElementById('reader')?.addEventListener('click', () => {
+    const grid = document.getElementById('terminal-body_ratzilla_grid');
+    if (grid) grid.focus();
+  });
+</script>
+
+<script>
+  document.querySelector('.cta-button')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = document.getElementById('reader');
+    if (!target) return;
+    const y = target.getBoundingClientRect().top + window.scrollY - 96;
+    const html = document.documentElement;
+    html.style.scrollBehavior = 'auto';
+    const start = window.scrollY;
+    const distance = y - start;
+    const duration = 1200;
+    let startTime = null;
+
+    function ease(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function step(timestamp) {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      window.scrollTo(0, start + distance * ease(progress));
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        html.style.scrollBehavior = '';
+      }
+    }
+
+    requestAnimationFrame(step);
+  });
+</script>
+
+<style>
+  /* Header — positioned over the hero, not in flow */
+  .header-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 3;
+  }
+
+  /* Wordmark */
+  .wordmark {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: color-mix(in srgb, #2C2825 50%, transparent);
+    letter-spacing: 0.01em;
+  }
+
+  /* Hero */
+  .hero-section {
+    min-height: calc(100vh + 12rem);
+    min-height: calc(100dvh + 12rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 2rem;
+    position: relative;
+    z-index: 2;
+    background: transparent;
+  }
+
+  .hero-section .mx-auto {
+    animation: fadeIn 800ms ease-out both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .verse-heading {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+    color: #2C2825;
+  }
+
+  .verse-ref {
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    color: color-mix(in srgb, #2C2825 40%, transparent);
+    margin-top: 1.5rem;
+  }
+
+  .divider {
+    width: 80px;
+    height: 1px;
+    background: #8B4049;
+    margin: 3rem auto 0;
+  }
+
+  .subtitle {
+    font-family: var(--font-sans);
+    font-weight: 300;
+    font-size: 1.125rem;
+    color: color-mix(in srgb, #2C2825 70%, transparent);
+    max-width: 480px;
+    margin: 2rem auto 0;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .cta-button {
+    display: inline-block;
+    margin-top: 3rem;
+    padding: 0.75rem 2rem;
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.0625rem;
+    color: #8B4049;
+    border: 1px solid rgba(139, 64, 73, 0.3);
+    border-radius: 60px;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: all 250ms ease;
+  }
+
+  .cta-button:hover {
+    background: rgba(139, 64, 73, 0.06);
+    border-color: rgba(139, 64, 73, 0.5);
+    color: #6B2F36;
+  }
+
+  /* Transition wrapper — solid dark, with ::before handling the gradient */
+  .transition-wrapper {
+    background: #1A1816;
+    padding-top: 8rem;
+    padding-bottom: 3rem;
+    position: relative;
+  }
+
+  .transition-wrapper::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 12rem;
+    background: linear-gradient(to bottom,
+      rgba(245,242,235,0) 0%,
+      rgba(244,241,233,0.06) 8%,
+      rgba(241,237,228,0.16) 16%,
+      rgba(236,231,220,0.3) 24%,
+      rgba(228,222,210,0.46) 32%,
+      rgba(218,210,196,0.6) 40%,
+      rgba(204,195,180,0.73) 48%,
+      rgba(186,176,160,0.84) 56%,
+      rgba(162,152,136,0.92) 64%,
+      rgba(130,120,106,0.97) 72%,
+      rgba(80,72,62,0.99) 82%,
+      #1A1816 92%,
+      #1A1816 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Light beam atmospheric backdrop */
+  .lightbeam-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    background-image: url('/assets/lightbeam.webp');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    opacity: 0.12;
+    mix-blend-mode: screen;
+    mask-image: radial-gradient(ellipse 60% 70% at center 35%, black 0%, transparent 80%);
+  }
+
+  /* Content inside transition-wrapper sits above the backdrop */
+  .transition-wrapper > .mx-auto {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Terminal */
+  .terminal-container {
+    scroll-margin-top: 6rem;
+    background: #1A1816;
+    border-radius: 8px;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.12),
+      0 0 80px rgba(139, 64, 73, 0.06);
+    overflow: hidden;
+  }
+
+  .terminal-titlebar {
+    height: 36px;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+  }
+
+  .traffic-dot {
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .terminal-name {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.2);
+  }
+
+  .terminal-body {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 14px;
+    line-height: 1.2;
+    cursor: default;
+  }
+
+  /* Loading placeholder — centered before WASM loads */
+  .terminal-body > #wasm-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  /* Ratzilla grid fills the container */
+  .terminal-body > pre {
+    margin: 0;
+    padding: 0;
+  }
+
+  @media (max-width: 640px) {
+    .terminal-body {
+      aspect-ratio: unset;
+      min-height: 400px;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .subtitle {
+      font-size: 0.9375rem; /* 15px */
+      line-height: 1.5;
+    }
+    .verse-ref {
+      font-size: 0.8125rem; /* 13px */
+    }
+    .cta-button {
+      font-size: 0.9375rem;
+      padding: 0.625rem 1.75rem;
+    }
+  }
+
+  .terminal-loading {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: #A89F91;
+  }
+
+  /* Ratzilla grid focus */
+  #terminal-body_ratzilla_grid:focus {
+    outline: 1px solid rgba(139, 64, 73, 0.35);
+    outline-offset: -1px;
+  }
+
+  /* Cursor blink */
+  .cursor-block {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background: #A89F91;
+    animation: blink 800ms step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* Keyboard hints */
+  .kbd-hints {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 6rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.3);
+  }
+
+  .kbd-sep {
+    color: rgba(255, 255, 255, 0.15);
+  }
+
+  /* About */
+  .about-section {
+    padding-top: 3rem;
+    padding-bottom: 2rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .about-text {
+    font-family: var(--font-sans);
+    font-weight: 300;
+    font-size: 0.875rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .source-link {
+    display: inline-block;
+    margin-top: 1.5rem;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    color: #8B4049;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: filter 150ms ease;
+  }
+
+  .source-link:hover {
+    filter: brightness(1.3);
+  }
+
+  /* Footer */
+  .footer {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.2);
+  }
+
+  .footer-sep {
+    color: rgba(255, 255, 255, 0.1);
+  }
+
+  .footer-link {
+    color: rgba(255, 255, 255, 0.2);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color 150ms ease;
+  }
+
+  .footer-link:hover {
+    color: rgba(255, 255, 255, 0.4);
+  }
+</style>
