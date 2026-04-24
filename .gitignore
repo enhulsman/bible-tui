@@ -1,2 +1,10 @@
 /target
 *.pdf
+*.png
+*.jpg
+*.jpeg
+web/node_modules/
+web/dist/
+web/.astro/
+web/.wrangler/
+web/.playwright-mcp/
