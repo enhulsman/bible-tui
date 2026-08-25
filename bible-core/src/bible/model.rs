@@ -123,3 +123,19 @@ impl std::fmt::Display for VerseRef {
         write!(f, "{}:{}", self.chapter, self.verse)
     }
 }
+
+/// An inclusive range of verses within a single book, possibly spanning
+/// chapters. `start` and `end` always share the same `book_index`, and
+/// `start` never comes after `end`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct VerseRange {
+    pub start: VerseRef,
+    pub end: VerseRef,
+}
+
+impl VerseRange {
+    /// Sentinel verse number meaning "the last verse of the end chapter".
+    /// Per-chapter verse counts are translation data, not canon data, so
+    /// whole-chapter ranges use this and consumers clamp when rendering.
+    pub const END_OF_CHAPTER: u8 = u8::MAX;
+}
