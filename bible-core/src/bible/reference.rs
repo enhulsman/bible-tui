@@ -47,14 +47,17 @@ pub fn parse_reference(input: &str, context_book: Option<u8>, context_chapter: O
 /// - "John 3:16-18" → verse range within a chapter
 /// - "Gen 1:1-2:3" → cross-chapter range
 /// - "Rom 8" → whole chapter (end verse = `VerseRange::END_OF_CHAPTER`)
+/// - "Rom 8-9" → whole-chapter range
+/// - "Rom 8-9:5" → chapter to verse range
 /// - "Genesis" → whole first chapter (parity with `parse_reference`)
 /// - "John 3:16" → single verse as a one-verse range
 /// - "3:16-18" → needs context book
-/// - "16-18" / "16" → needs context book + chapter
+/// - "8-9" → chapter range with context book, or verse range with context chapter
+/// - "16" → needs context book + chapter
 ///
 /// Endpoints may be separated by '-' or '–' (en dash), with optional
-/// whitespace around the dash. A bare number after the dash is a verse in
-/// the start's chapter; "chapter:verse" after the dash switches chapters.
+/// whitespace around the dash. A bare number after a verse is a verse in
+/// the start's chapter; after a whole chapter, it is a chapter.
 ///
 /// Returns None for reversed ranges, chapters outside the canon,
 /// chapter/verse 0, trailing junk, or otherwise unparseable input. Verse
@@ -78,15 +81,23 @@ pub fn parse_range(
         None => (normalized.as_str(), None),
     };
 
-    match resolve_start(start_part, context_book, context_chapter)? {
+    match resolve_start(start_part, context_book, context_chapter, end_part.is_some())? {
         StartEndpoint::WholeChapter(book_index, chapter) => {
-            // Whole-chapter references don't compose into ranges.
-            if end_part.is_some() {
-                return None;
-            }
+            let start = VerseRef { book_index, chapter, verse: 1 };
+            let end = match end_part {
+                Some(part) if part.contains(':') => resolve_end(part, book_index, start)?,
+                Some(part) => {
+                    let end_chapter = part.parse::<u16>().ok()?;
+                    if !chapter_in_canon(book_index, end_chapter) || end_chapter < chapter {
+                        return None;
+                    }
+                    VerseRef { book_index, chapter: end_chapter, verse: VerseRange::END_OF_CHAPTER }
+                }
+                None => VerseRef { book_index, chapter, verse: VerseRange::END_OF_CHAPTER },
+            };
             Some(VerseRange {
-                start: VerseRef { book_index, chapter, verse: 1 },
-                end: VerseRef { book_index, chapter, verse: VerseRange::END_OF_CHAPTER },
+                start,
+                end,
             })
         }
         StartEndpoint::Single(start) => {
@@ -129,6 +140,7 @@ fn resolve_start(
     part: &str,
     context_book: Option<u8>,
     context_chapter: Option<u16>,
+    has_end: bool,
 ) -> Option<StartEndpoint> {
     if let Some((book_index, remainder)) = split_book_prefix(part) {
         let book_index = book_index as u8;
@@ -144,14 +156,16 @@ fn resolve_start(
         };
     }
 
-    // Partial forms need a context book; a bare verse also needs a chapter.
+    // Partial forms need a context book. A bare number starts a chapter range
+    // only when no context chapter is present and there is an end part.
     let book_index = context_book?;
     match part.split_once(':') {
         Some((ch, vs)) => single_verse(book_index, ch.trim().parse().ok()?, vs.trim().parse().ok()?),
-        None => {
-            let chapter = context_chapter?;
-            single_verse(book_index, chapter, part.parse().ok()?)
-        }
+        None => match context_chapter {
+            Some(chapter) => single_verse(book_index, chapter, part.parse().ok()?),
+            None if has_end => whole_chapter(book_index, part.parse().ok()?),
+            None => None,
+        },
     }
 }
 
