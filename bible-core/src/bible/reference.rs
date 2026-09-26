@@ -505,6 +505,7 @@ mod tests {
         // No context book/chapter → partial forms must not parse
         assert!(parse_range("3:16-18", None, None).is_none());
         assert!(parse_range("16-18", None, None).is_none());
-        assert!(parse_range("16-18", Some(42), None).is_none());
+        // ("16-18", Some(42), None) is a chapter range under C1: spec/c1.md
+        // SHALL 7 and DECISION D2.
     }
 }
