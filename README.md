@@ -4,13 +4,15 @@ A terminal Bible reader with vim-like navigation, built with Rust and ratatui. A
 
 **[Try it in your browser](https://bible.hulsman.dev)**
 
+![bible-tui demo: scrolling John 1, searching for "light world", selecting John 8:12, then switching to the Statenvertaling](demo/demo.gif)
+
 ## Features
 
 - **3 bundled translations** — KJV, WEB (with red-letter text), and Statenvertaling (Dutch)
 - **Import translations** — add from MyBible SQLite, Zefania XML, or JSON files; loaded at runtime from SQLite library
 - **Command autocomplete** — dropdown suggestions for commands, translations, and book names
 - **Full-text search** — in-memory search index, min 2 characters, results across all books
-- **Bookmarks** — save and recall verse positions
+- **Bookmarks** — press `B` to bookmark the current verse; bookmarks are saved to `bookmarks.toml` (there is no view to browse or jump to them yet)
 - **Vim-like navigation** — `h/l` chapter switching, `j/k` scrolling, `g/G` jump, `:goto` command mode
 - **State persistence** — remembers last position and translation across sessions
 - **Fast startup** — bundled translations serialized as postcard binary, deserialized instantly

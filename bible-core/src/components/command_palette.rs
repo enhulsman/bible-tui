@@ -249,11 +249,38 @@ impl CommandPalette {
                 )
                 .highlight_style(
                     Style::default()
-                        .bg(Color::DarkGray)
+                        .fg(Color::Black)
+                        .bg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 );
 
             frame.render_stateful_widget(list, chunks[1], &mut self.suggestion_state);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    #[test]
+    fn selected_suggestion_has_yellow_background_and_black_text() {
+        let mut palette = CommandPalette::new();
+        palette.open();
+        assert!(palette.suggestions.len() >= 2);
+
+        let mut terminal = Terminal::new(TestBackend::new(80, 20)).unwrap();
+        terminal
+            .draw(|frame| palette.render(frame, Rect::new(0, 0, 80, 20)))
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+        for x in 11..69 {
+            let cell = buffer.cell((x, 5)).unwrap();
+            assert_eq!(cell.bg, Color::Yellow, "selected row x={x}");
+            assert_eq!(cell.fg, Color::Black, "selected row x={x}");
+        }
+        assert_ne!(buffer.cell((11, 6)).unwrap().bg, Color::Yellow);
     }
 }

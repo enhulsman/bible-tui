@@ -30,7 +30,10 @@ impl SearchIndex {
                     let text = verse.text();
                     let words = tokenize(&text);
                     for word in words {
-                        index.entry(word).or_default().push(vref);
+                        let posting = index.entry(word).or_default();
+                        if posting.last() != Some(&vref) {
+                            posting.push(vref);
+                        }
                     }
                     verses.push((vref, text));
                 }
@@ -95,6 +98,35 @@ mod tests {
     use super::*;
     use crate::bible::loader;
     use crate::bible::model::BundledTranslation;
+    use std::collections::HashSet;
+
+    #[test]
+    fn search_lists_each_verse_once() {
+        let bible = loader::load_bundled(BundledTranslation::Kjv);
+        let index = SearchIndex::build(&bible);
+        let results = index.search("light world");
+        let refs: HashSet<_> = results.iter().map(|r| r.verse_ref).collect();
+        assert_eq!(refs.len(), results.len());
+        assert!(results.iter().any(|r| {
+            r.verse_ref.book_index == 42
+                && r.verse_ref.chapter == 8
+                && r.verse_ref.verse == 12
+        }));
+    }
+
+    #[test]
+    fn search_lists_each_verse_once_for_repeated_word() {
+        let bible = loader::load_bundled(BundledTranslation::Kjv);
+        let index = SearchIndex::build(&bible);
+        let results = index.search("light");
+        let refs: HashSet<_> = results.iter().map(|r| r.verse_ref).collect();
+        assert_eq!(refs.len(), results.len());
+        assert!(results.iter().any(|r| {
+            r.verse_ref.book_index == 42
+                && r.verse_ref.chapter == 8
+                && r.verse_ref.verse == 12
+        }));
+    }
 
     #[test]
     fn search_finds_god_so_loved() {

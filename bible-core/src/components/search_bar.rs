@@ -215,11 +215,66 @@ impl SearchBar {
                 .block(Block::default().borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM))
                 .highlight_style(
                     Style::default()
-                        .bg(Color::DarkGray)
+                        .fg(Color::Black)
+                        .bg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 );
 
             frame.render_stateful_widget(list, chunks[1], &mut self.result_state);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bible::loader;
+    use crate::bible::model::{BundledTranslation, VerseRef};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    #[test]
+    fn selected_result_has_yellow_background_and_black_text() {
+        let bible = loader::load_bundled(BundledTranslation::Kjv);
+        let mut bar = SearchBar::new();
+        bar.results = vec![
+            SearchResult {
+                verse_ref: VerseRef {
+                    book_index: 42,
+                    chapter: 8,
+                    verse: 12,
+                },
+                text: "I am the light of the world".into(),
+            },
+            SearchResult {
+                verse_ref: VerseRef {
+                    book_index: 42,
+                    chapter: 3,
+                    verse: 16,
+                },
+                text: "For God so loved the world".into(),
+            },
+            SearchResult {
+                verse_ref: VerseRef {
+                    book_index: 42,
+                    chapter: 1,
+                    verse: 1,
+                },
+                text: "In the beginning".into(),
+            },
+        ];
+        bar.result_state.select(Some(0));
+
+        let mut terminal = Terminal::new(TestBackend::new(80, 20)).unwrap();
+        terminal
+            .draw(|frame| bar.render(frame, Rect::new(0, 0, 80, 20), &bible.books))
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+        for x in 6..74 {
+            let cell = buffer.cell((x, 5)).unwrap();
+            assert_eq!(cell.bg, Color::Yellow, "selected row x={x}");
+            assert_eq!(cell.fg, Color::Black, "selected row x={x}");
+        }
+        assert_eq!(buffer.cell((6, 6)).unwrap().fg, Color::Cyan);
     }
 }
