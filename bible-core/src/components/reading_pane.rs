@@ -19,6 +19,8 @@ pub struct ReadingPane {
     verse_starts: Vec<(u8, u16)>,
     /// Current scroll offset (in wrapped lines).
     scroll: u16,
+    /// Logical verse anchor while the width is too small to wrap text.
+    deferred_verse: Option<u8>,
     /// Total number of wrapped lines.
     total_lines: u16,
     /// Visible height of the pane.
@@ -38,6 +40,7 @@ impl ReadingPane {
             line_to_verse: vec![1],
             verse_starts: vec![],
             scroll: 0,
+            deferred_verse: None,
             total_lines: 1,
             visible_height: 0,
             book_index: 0,
@@ -51,14 +54,16 @@ impl ReadingPane {
         self.book_name = book_name.to_string();
         self.chapter_num = chapter.number;
         self.scroll = 0;
+        self.deferred_verse = None;
         self.rebuild_lines(chapter, width);
     }
 
     pub fn rebuild_lines(&mut self, chapter: &Chapter, width: u16) {
-        let was_at_top = self.scroll == 0;
+        let was_at_top = self.scroll == 0 && self.deferred_verse.is_none();
         let current_verse = self.current_verse_approx();
         self.verse_starts.clear();
         if width < 4 {
+            self.deferred_verse = Some(current_verse);
             self.lines = vec![Line::from("")];
             self.line_to_verse = vec![1];
             self.total_lines = 1;
@@ -158,6 +163,7 @@ impl ReadingPane {
         self.total_lines = all_lines.len() as u16;
         self.line_to_verse = line_verses;
         self.lines = all_lines;
+        self.deferred_verse = None;
         if !was_at_top {
             self.scroll_to_verse(current_verse);
         }
@@ -167,6 +173,10 @@ impl ReadingPane {
     /// Permit trailing blank space so the status bar identifies even the last verse.
     /// The chapter's first verse opens at the top, so the chapter title stays visible.
     pub fn scroll_to_verse(&mut self, verse: u8) {
+        if self.deferred_verse.is_some() {
+            self.deferred_verse = Some(verse);
+            return;
+        }
         let target = self.verse_starts.iter()
             .position(|(number, _)| *number >= verse)
             .or_else(|| self.verse_starts.len().checked_sub(1));
@@ -186,6 +196,9 @@ impl ReadingPane {
 
     pub fn scroll_to_top(&mut self) {
         self.scroll = 0;
+        if self.deferred_verse.is_some() {
+            self.deferred_verse = Some(1);
+        }
     }
 
     pub fn scroll_to_bottom(&mut self) {
@@ -201,6 +214,9 @@ impl ReadingPane {
     }
 
     pub fn current_verse_approx(&self) -> u8 {
+        if let Some(verse) = self.deferred_verse {
+            return verse;
+        }
         if self.line_to_verse.is_empty() {
             return 1;
         }

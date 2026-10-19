@@ -140,6 +140,71 @@ fn narrow_width_and_resize_keep_target_on_its_first_wrapped_line() {
 }
 
 #[test]
+fn target_survives_placeholder_width_and_restores_on_resize() {
+    let mut app = app();
+    render(&mut app, 80);
+    goto(&mut app, "John 8:12");
+    assert_at(&mut app, 80, 12, "¹² Then spake Jesus");
+    app.update(&Action::Resize(3, 12));
+    render(&mut app, 3);
+    app.update(&Action::Resize(80, 12));
+    assert_at(&mut app, 80, 12, "¹² Then spake Jesus");
+}
+
+#[test]
+fn navigation_at_placeholder_width_restores_target_when_widened() {
+    let mut app = app();
+    render(&mut app, 3);
+    goto(&mut app, "John 8:12");
+    render(&mut app, 3);
+    assert_at(&mut app, 80, 12, "¹² Then spake Jesus");
+}
+
+#[test]
+fn placeholder_navigation_preserves_first_verse_and_clamping() {
+    for verse in [1, 99] {
+        let mut app = app();
+        render(&mut app, 3);
+        goto(&mut app, &format!("John 8:{verse}"));
+        if verse == 1 {
+            assert_at(&mut app, 80, 1, "John 8");
+        } else {
+            assert_at(&mut app, 80, 59, "⁵⁹ Then took they up stones");
+        }
+    }
+}
+
+#[test]
+fn chapter_navigation_clears_the_deferred_verse() {
+    let mut app = app();
+    render(&mut app, 3);
+    goto(&mut app, "John 8:12");
+    goto(&mut app, "John 8");
+    assert_at(&mut app, 80, 1, "John 8");
+}
+
+#[test]
+fn placeholder_tracks_logical_verse_after_returning_to_top() {
+    use bible_core::components::reading_pane::ReadingPane;
+
+    let bible = loader::load_bundled(BundledTranslation::Kjv);
+    let chapter = &bible.books[42].chapters[7];
+    let mut pane = ReadingPane::new();
+    pane.set_chapter(42, "John", chapter, 80);
+    pane.scroll_to_verse(12);
+    for width in [3, 2, 3] {
+        pane.rebuild_lines(chapter, width);
+        assert_eq!(pane.current_verse_approx(), 12);
+    }
+    pane.scroll_to_top();
+    assert_eq!(pane.current_verse_approx(), 1);
+    pane.scroll_to_verse(12);
+    assert_eq!(pane.current_verse_approx(), 12);
+    pane.rebuild_lines(chapter, 80);
+    assert_eq!(pane.current_verse_approx(), 12);
+}
+
+#[test]
 fn section_heading_does_not_replace_the_target_verse_text() {
     use bible_core::bible::model::{Chapter, SectionHeading, Verse, VerseSpan};
     use bible_core::components::reading_pane::ReadingPane;
