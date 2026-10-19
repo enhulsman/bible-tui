@@ -201,10 +201,15 @@ impl App {
                 self.rewrap_current_chapter();
             }
             Action::NavigateToRef { book, chapter } => {
-                self.navigate_to(*book, *chapter);
+                self.navigate_to(*book, *chapter, None);
                 self.mode = Mode::Normal;
                 self.show_nav = false;
                 self.rewrap_current_chapter();
+            }
+            Action::NavigateToVerse { book, chapter, verse } => {
+                self.mode = Mode::Normal;
+                self.show_nav = false;
+                self.navigate_to(*book, *chapter, Some(*verse));
             }
             Action::EnterSearchMode => {
                 self.mode = Mode::Search;
@@ -272,7 +277,7 @@ impl App {
                     if let Some(vref) =
                         reference::parse_reference(ref_str.trim(), context_book, context_chapter)
                     {
-                        self.navigate_to(vref.book_index, vref.chapter);
+                        self.navigate_to(vref.book_index, vref.chapter, Some(vref.verse));
                         self.error_message = None;
                     } else {
                         self.error_message =
@@ -309,19 +314,22 @@ impl App {
             self.bible = bible;
             self.current_translation = info;
             self.search_index = None; // invalidate lazy index
-            self.navigate_to(book_idx, ch_num);
+            self.navigate_to(book_idx, ch_num, None);
         } else {
             self.error_message = Some(format!("Failed to load: {name}"));
         }
     }
 
-    fn navigate_to(&mut self, book_index: u8, chapter: u16) {
+    fn navigate_to(&mut self, book_index: u8, chapter: u16, verse: Option<u8>) {
         if let Some(book) = self.bible.books.get(book_index as usize) {
             let name = book.name.clone();
             let ch_idx = (chapter as usize).saturating_sub(1);
             if let Some(ch) = book.chapters.get(ch_idx) {
                 self.reading_pane
                     .set_chapter(book_index, &name, ch, self.content_width());
+                if let Some(verse) = verse {
+                    self.reading_pane.scroll_to_verse(verse);
+                }
             }
         }
     }

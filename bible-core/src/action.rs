@@ -15,6 +15,7 @@ pub enum Action {
     SelectBook(u8),
     SelectChapter(u16),
     NavigateToRef { book: u8, chapter: u16 },
+    NavigateToVerse { book: u8, chapter: u16, verse: u8 },
     EnterSearchMode,
     ExitSearchMode,
     SearchQuery(String),

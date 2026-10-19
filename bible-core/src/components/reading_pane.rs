@@ -15,6 +15,8 @@ pub struct ReadingPane {
     lines: Vec<Line<'static>>,
     /// Maps each display line index to its verse number.
     line_to_verse: Vec<u8>,
+    /// First text line for each verse, excluding chapter and section headings.
+    verse_starts: Vec<(u8, u16)>,
     /// Current scroll offset (in wrapped lines).
     scroll: u16,
     /// Total number of wrapped lines.
@@ -34,6 +36,7 @@ impl ReadingPane {
         Self {
             lines: vec![Line::from("Loading...")],
             line_to_verse: vec![1],
+            verse_starts: vec![],
             scroll: 0,
             total_lines: 1,
             visible_height: 0,
@@ -52,10 +55,14 @@ impl ReadingPane {
     }
 
     pub fn rebuild_lines(&mut self, chapter: &Chapter, width: u16) {
+        let was_at_top = self.scroll == 0;
+        let current_verse = self.current_verse_approx();
+        self.verse_starts.clear();
         if width < 4 {
             self.lines = vec![Line::from("")];
             self.line_to_verse = vec![1];
             self.total_lines = 1;
+            self.scroll = 0;
             debug_assert_eq!(self.lines.len(), self.line_to_verse.len());
             return;
         }
@@ -95,6 +102,8 @@ impl ReadingPane {
                     line_verses.push(hv);
                 }
             }
+
+            self.verse_starts.push((verse.number, all_lines.len() as u16));
 
             // Build text spans (without verse number)
             let mut text_spans: Vec<(String, Style)> = Vec::new();
@@ -149,11 +158,26 @@ impl ReadingPane {
         self.total_lines = all_lines.len() as u16;
         self.line_to_verse = line_verses;
         self.lines = all_lines;
+        if !was_at_top {
+            self.scroll_to_verse(current_verse);
+        }
+    }
+
+    /// Position the verse's first wrapped text line at the top of the pane.
+    /// Permit trailing blank space so the status bar identifies even the last verse.
+    /// The chapter's first verse opens at the top, so the chapter title stays visible.
+    pub fn scroll_to_verse(&mut self, verse: u8) {
+        let target = self.verse_starts.iter()
+            .position(|(number, _)| *number >= verse)
+            .or_else(|| self.verse_starts.len().checked_sub(1));
+        if let Some(index) = target {
+            self.scroll = if index == 0 { 0 } else { self.verse_starts[index].1 };
+        }
     }
 
     pub fn scroll_down(&mut self, n: u16) {
         let max_scroll = self.total_lines.saturating_sub(self.visible_height);
-        self.scroll = (self.scroll + n).min(max_scroll);
+        self.scroll = self.scroll.saturating_add(n).min(max_scroll.max(self.scroll));
     }
 
     pub fn scroll_up(&mut self, n: u16) {

@@ -47,9 +47,10 @@ impl SearchBar {
             KeyCode::Esc => Action::ExitSearchMode,
             KeyCode::Enter => {
                 if let Some(result) = self.results.get(self.selected) {
-                    Action::NavigateToRef {
+                    Action::NavigateToVerse {
                         book: result.verse_ref.book_index,
                         chapter: result.verse_ref.chapter,
+                        verse: result.verse_ref.verse,
                     }
                 } else {
                     Action::ExitSearchMode
@@ -131,9 +132,10 @@ impl SearchBar {
         }
         self.selected = (self.selected + 1) % self.results.len();
         self.result_state.select(Some(self.selected));
-        self.results.get(self.selected).map(|r| Action::NavigateToRef {
+        self.results.get(self.selected).map(|r| Action::NavigateToVerse {
             book: r.verse_ref.book_index,
             chapter: r.verse_ref.chapter,
+            verse: r.verse_ref.verse,
         })
     }
 
@@ -148,9 +150,10 @@ impl SearchBar {
             self.selected - 1
         };
         self.result_state.select(Some(self.selected));
-        self.results.get(self.selected).map(|r| Action::NavigateToRef {
+        self.results.get(self.selected).map(|r| Action::NavigateToVerse {
             book: r.verse_ref.book_index,
             chapter: r.verse_ref.chapter,
+            verse: r.verse_ref.verse,
         })
     }
 
