@@ -241,3 +241,174 @@ fn last_verse_survives_resize_and_down_does_not_jump_backwards() {
     key(&mut app, KeyCode::Down);
     assert_at(&mut app, 80, 59, "⁵⁹ Then took they up stones");
 }
+
+#[test]
+fn bottom_key_at_placeholder_width_restores_bottom_when_widened() {
+    let mut expected = app();
+    render(&mut expected, 80);
+    goto(&mut expected, "John 8:12");
+    key(&mut expected, KeyCode::Char('G'));
+    let expected_rows = render(&mut expected, 80);
+    assert!(expected_rows.iter().any(|row| row.contains("⁵⁹ Then took")));
+
+    let mut actual = app();
+    render(&mut actual, 80);
+    goto(&mut actual, "John 8:12");
+    actual.update(&Action::Resize(3, 12));
+    render(&mut actual, 3);
+    key(&mut actual, KeyCode::Char('G'));
+    actual.update(&Action::Resize(80, 12));
+    assert_eq!(render(&mut actual, 80), expected_rows);
+}
+
+use bible_core::components::reading_pane::ReadingPane;
+
+fn pane_rows(pane: &mut ReadingPane, width: u16, height: u16) -> Vec<String> {
+    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+    terminal.draw(|frame| pane.render(frame, frame.area())).unwrap();
+    let buffer = terminal.backend().buffer();
+    (0..height)
+        .map(|y| (0..width).map(|x| buffer[(x, y)].symbol()).collect())
+        .collect()
+}
+
+fn assert_deferred_navigation(actions: &[fn(&mut ReadingPane)]) {
+    let bible = loader::load_bundled(BundledTranslation::Kjv);
+    let chapter = &bible.books[42].chapters[7];
+    let mut expected = ReadingPane::new();
+    expected.set_chapter(42, "John", chapter, 44);
+    pane_rows(&mut expected, 44, 16);
+    expected.scroll_to_verse(12);
+    let unchanged_rows = pane_rows(&mut expected, 44, 16);
+    for action in actions {
+        action(&mut expected);
+    }
+    let expected_rows = pane_rows(&mut expected, 44, 16);
+    assert_ne!(expected_rows, unchanged_rows, "action must move the viewport");
+
+    let mut actual = ReadingPane::new();
+    actual.set_chapter(42, "John", chapter, 80);
+    pane_rows(&mut actual, 80, 12);
+    actual.scroll_to_verse(12);
+    actual.rebuild_lines(chapter, 3);
+    pane_rows(&mut actual, 3, 7);
+    for action in actions {
+        action(&mut actual);
+        // Repeated narrow rebuilds and renders must neither lose nor consume intent.
+        actual.rebuild_lines(chapter, 2);
+        pane_rows(&mut actual, 2, 7);
+    }
+    actual.rebuild_lines(chapter, 44);
+    assert_eq!(pane_rows(&mut actual, 44, 16), expected_rows);
+    assert_eq!(actual.current_verse_approx(), expected.current_verse_approx());
+    assert_eq!(pane_rows(&mut actual, 44, 16), expected_rows, "replay only once");
+}
+
+#[test]
+fn deferred_scroll_down_survives_widening() {
+    assert_deferred_navigation(&[|pane| pane.scroll_down(2)]);
+}
+
+#[test]
+fn deferred_scroll_up_survives_widening() {
+    assert_deferred_navigation(&[|pane| pane.scroll_up(2)]);
+}
+
+#[test]
+fn deferred_page_down_uses_restored_viewport() {
+    assert_deferred_navigation(&[ReadingPane::page_down]);
+}
+
+#[test]
+fn deferred_page_up_uses_restored_viewport() {
+    assert_deferred_navigation(&[ReadingPane::page_up]);
+}
+
+#[test]
+fn deferred_top_survives_widening() {
+    assert_deferred_navigation(&[ReadingPane::scroll_to_top]);
+}
+
+#[test]
+fn deferred_bottom_uses_rebuilt_chapter_and_restored_viewport() {
+    assert_deferred_navigation(&[ReadingPane::scroll_to_bottom]);
+}
+
+#[test]
+fn deferred_verse_jump_survives_widening() {
+    assert_deferred_navigation(&[|pane| pane.scroll_to_verse(20)]);
+}
+
+#[test]
+fn deferred_navigation_preserves_action_order() {
+    assert_deferred_navigation(&[
+        ReadingPane::scroll_to_bottom,
+        ReadingPane::page_up,
+        |pane| pane.scroll_up(2),
+        |pane| pane.scroll_down(1),
+    ]);
+    assert_deferred_navigation(&[
+        ReadingPane::scroll_to_top,
+        ReadingPane::page_down,
+    ]);
+}
+
+#[test]
+fn deferred_absolute_jumps_replace_earlier_navigation() {
+    assert_deferred_navigation(&[
+        ReadingPane::scroll_to_bottom,
+        |pane| pane.scroll_to_verse(20),
+        |pane| pane.scroll_down(1),
+    ]);
+    assert_deferred_navigation(&[
+        ReadingPane::page_down,
+        ReadingPane::scroll_to_top,
+    ]);
+}
+
+#[test]
+fn deferred_line_navigation_keeps_scroll_bounds() {
+    assert_deferred_navigation(&[|pane| pane.scroll_up(u16::MAX)]);
+    assert_deferred_navigation(&[|pane| pane.scroll_down(u16::MAX)]);
+    assert_deferred_navigation(&[
+        |pane| pane.scroll_to_verse(59),
+        |pane| pane.scroll_down(1),
+    ]);
+}
+
+#[test]
+fn navigation_between_rebuild_and_render_keeps_action_order() {
+    let bible = loader::load_bundled(BundledTranslation::Kjv);
+    let chapter = &bible.books[42].chapters[7];
+    let mut expected = ReadingPane::new();
+    expected.set_chapter(42, "John", chapter, 44);
+    pane_rows(&mut expected, 44, 16);
+    expected.scroll_to_bottom();
+    expected.page_up();
+    let expected_rows = pane_rows(&mut expected, 44, 16);
+
+    let mut actual = ReadingPane::new();
+    actual.set_chapter(42, "John", chapter, 3);
+    actual.scroll_to_verse(12);
+    actual.scroll_to_bottom();
+    actual.rebuild_lines(chapter, 44);
+    actual.page_up();
+    assert_eq!(pane_rows(&mut actual, 44, 16), expected_rows);
+}
+
+#[test]
+fn chapter_change_discards_deferred_navigation() {
+    let bible = loader::load_bundled(BundledTranslation::Kjv);
+    let chapter = &bible.books[42].chapters[7];
+    let mut pane = ReadingPane::new();
+    pane.set_chapter(42, "John", chapter, 80);
+    pane_rows(&mut pane, 80, 12);
+    pane.scroll_to_verse(12);
+    pane.rebuild_lines(chapter, 3);
+    pane.scroll_to_bottom();
+    pane.page_up();
+    pane.set_chapter(42, "John", chapter, 3);
+    pane.rebuild_lines(chapter, 80);
+    assert!(pane_rows(&mut pane, 80, 12)[0].starts_with("John 8"));
+    assert_eq!(pane.current_verse_approx(), 1);
+}

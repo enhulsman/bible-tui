@@ -10,6 +10,14 @@ use crate::bible::model::{Chapter, VerseSpan};
 use crate::ui::theme::Theme;
 use crate::ui::wrap::{superscript_number, wrap_spans};
 
+enum DeferredNavigation {
+    Down(u16),
+    Up(u16),
+    PageDown,
+    PageUp,
+    Bottom,
+}
+
 pub struct ReadingPane {
     /// Pre-wrapped lines ready for rendering.
     lines: Vec<Line<'static>>,
@@ -21,6 +29,8 @@ pub struct ReadingPane {
     scroll: u16,
     /// Logical verse anchor while the width is too small to wrap text.
     deferred_verse: Option<u8>,
+    /// Replay after wrapping and rendering provide real lines and viewport height.
+    deferred_navigation: Vec<DeferredNavigation>,
     /// Total number of wrapped lines.
     total_lines: u16,
     /// Visible height of the pane.
@@ -41,6 +51,7 @@ impl ReadingPane {
             verse_starts: vec![],
             scroll: 0,
             deferred_verse: None,
+            deferred_navigation: Vec::new(),
             total_lines: 1,
             visible_height: 0,
             book_index: 0,
@@ -55,6 +66,7 @@ impl ReadingPane {
         self.chapter_num = chapter.number;
         self.scroll = 0;
         self.deferred_verse = None;
+        self.deferred_navigation.clear();
         self.rebuild_lines(chapter, width);
     }
 
@@ -165,7 +177,7 @@ impl ReadingPane {
         self.lines = all_lines;
         self.deferred_verse = None;
         if !was_at_top {
-            self.scroll_to_verse(current_verse);
+            self.set_verse_scroll(current_verse);
         }
     }
 
@@ -173,10 +185,15 @@ impl ReadingPane {
     /// Permit trailing blank space so the status bar identifies even the last verse.
     /// The chapter's first verse opens at the top, so the chapter title stays visible.
     pub fn scroll_to_verse(&mut self, verse: u8) {
+        self.deferred_navigation.clear();
         if self.deferred_verse.is_some() {
             self.deferred_verse = Some(verse);
             return;
         }
+        self.set_verse_scroll(verse);
+    }
+
+    fn set_verse_scroll(&mut self, verse: u8) {
         let target = self.verse_starts.iter()
             .position(|(number, _)| *number >= verse)
             .or_else(|| self.verse_starts.len().checked_sub(1));
@@ -186,15 +203,22 @@ impl ReadingPane {
     }
 
     pub fn scroll_down(&mut self, n: u16) {
+        if self.defer_navigation(DeferredNavigation::Down(n)) {
+            return;
+        }
         let max_scroll = self.total_lines.saturating_sub(self.visible_height);
         self.scroll = self.scroll.saturating_add(n).min(max_scroll.max(self.scroll));
     }
 
     pub fn scroll_up(&mut self, n: u16) {
+        if self.defer_navigation(DeferredNavigation::Up(n)) {
+            return;
+        }
         self.scroll = self.scroll.saturating_sub(n);
     }
 
     pub fn scroll_to_top(&mut self) {
+        self.deferred_navigation.clear();
         self.scroll = 0;
         if self.deferred_verse.is_some() {
             self.deferred_verse = Some(1);
@@ -202,15 +226,33 @@ impl ReadingPane {
     }
 
     pub fn scroll_to_bottom(&mut self) {
+        if self.defer_navigation(DeferredNavigation::Bottom) {
+            return;
+        }
         self.scroll = self.total_lines.saturating_sub(self.visible_height);
     }
 
     pub fn page_down(&mut self) {
+        if self.defer_navigation(DeferredNavigation::PageDown) {
+            return;
+        }
         self.scroll_down(self.visible_height.saturating_sub(2));
     }
 
     pub fn page_up(&mut self) {
+        if self.defer_navigation(DeferredNavigation::PageUp) {
+            return;
+        }
         self.scroll_up(self.visible_height.saturating_sub(2));
+    }
+
+    fn defer_navigation(&mut self, navigation: DeferredNavigation) -> bool {
+        if self.deferred_verse.is_some() || !self.deferred_navigation.is_empty() {
+            self.deferred_navigation.push(navigation);
+            true
+        } else {
+            false
+        }
     }
 
     pub fn current_verse_approx(&self) -> u8 {
@@ -226,6 +268,19 @@ impl ReadingPane {
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
         self.visible_height = area.height.saturating_sub(2); // account for borders
+
+        // Rebuild runs before render, when the restored viewport height is unknown.
+        if self.deferred_verse.is_none() {
+            for navigation in std::mem::take(&mut self.deferred_navigation) {
+                match navigation {
+                    DeferredNavigation::Down(n) => self.scroll_down(n),
+                    DeferredNavigation::Up(n) => self.scroll_up(n),
+                    DeferredNavigation::PageDown => self.page_down(),
+                    DeferredNavigation::PageUp => self.page_up(),
+                    DeferredNavigation::Bottom => self.scroll_to_bottom(),
+                }
+            }
+        }
 
         let block = Block::default()
             .borders(Borders::NONE)
