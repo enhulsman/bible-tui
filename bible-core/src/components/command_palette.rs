@@ -27,6 +27,12 @@ pub struct CommandPalette {
     available_translations: Vec<String>,
 }
 
+impl Default for CommandPalette {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CommandPalette {
     pub fn new() -> Self {
         Self {

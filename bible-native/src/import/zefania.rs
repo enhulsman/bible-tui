@@ -95,11 +95,9 @@ pub fn parse(path: &Path) -> color_eyre::Result<ImportedTranslation> {
                     _ => {}
                 }
             }
-            Ok(XmlEvent::Text(ref e)) => {
-                if current_verse.is_some() {
-                    let text = e.unescape().unwrap_or_default().to_string();
-                    verse_text.push_str(&text);
-                }
+            Ok(XmlEvent::Text(ref e)) if current_verse.is_some() => {
+                let text = e.unescape().unwrap_or_default().to_string();
+                verse_text.push_str(&text);
             }
             Err(e) => {
                 return Err(color_eyre::eyre::eyre!("Zefania XML parse error: {e}"));

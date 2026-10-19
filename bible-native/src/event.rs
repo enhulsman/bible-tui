@@ -24,15 +24,15 @@ impl EventHandler {
         thread::spawn(move || loop {
             if event::poll(tick_rate).expect("failed to poll events") {
                 match event::read().expect("failed to read event") {
-                    CrosstermEvent::Key(e) => {
-                        if event_tx.send(Event::Key(crate::keys::from_crossterm(e))).is_err() {
-                            return;
-                        }
+                    CrosstermEvent::Key(e)
+                        if event_tx.send(Event::Key(crate::keys::from_crossterm(e))).is_err() =>
+                    {
+                        return;
                     }
-                    CrosstermEvent::Resize(w, h) => {
-                        if event_tx.send(Event::Resize(w, h)).is_err() {
-                            return;
-                        }
+                    CrosstermEvent::Resize(w, h)
+                        if event_tx.send(Event::Resize(w, h)).is_err() =>
+                    {
+                        return;
                     }
                     _ => {}
                 }

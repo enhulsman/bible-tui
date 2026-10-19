@@ -26,10 +26,8 @@ pub fn parse(path: &Path) -> color_eyre::Result<ImportedTranslation> {
 
         for (key, value) in &rows {
             match key.as_str() {
-                "description" | "detailed_info" => {
-                    if name.is_empty() {
-                        name = value.clone();
-                    }
+                "description" | "detailed_info" if name.is_empty() => {
+                    name = value.clone();
                 }
                 "abbreviation" => abbreviation = value.clone(),
                 "language" => language = value.clone(),

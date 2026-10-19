@@ -17,6 +17,12 @@ pub struct SearchBar {
     selected: usize,
 }
 
+impl Default for SearchBar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SearchBar {
     pub fn new() -> Self {
         Self {

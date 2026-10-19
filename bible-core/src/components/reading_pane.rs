@@ -43,6 +43,12 @@ pub struct ReadingPane {
     book_name: String,
 }
 
+impl Default for ReadingPane {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReadingPane {
     pub fn new() -> Self {
         Self {

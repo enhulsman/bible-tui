@@ -25,6 +25,12 @@ pub struct NavPanel {
     chapter_page_size: usize,
 }
 
+impl Default for NavPanel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NavPanel {
     pub fn new() -> Self {
         let mut state = ListState::default();
