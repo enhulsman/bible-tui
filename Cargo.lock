@@ -223,6 +223,7 @@ dependencies = [
  "console_error_panic_hook",
  "js-sys",
  "ratzilla",
+ "serde_json",
  "wasm-bindgen",
  "web-sys",
 ]

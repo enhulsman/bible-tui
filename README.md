@@ -12,7 +12,7 @@ A terminal Bible reader with vim-like navigation, built with Rust and ratatui. A
 - **Import translations** — add from MyBible SQLite, Zefania XML, or JSON files; loaded at runtime from SQLite library
 - **Command autocomplete** — dropdown suggestions for commands, translations, and book names
 - **Full-text search** — in-memory search index, min 2 characters, results across all books
-- **Bookmarks** — press B to toggle a bookmark on the current verse. Use :bookmarks (or :bm) to browse saved verses, type to filter, use ↑/↓ to select, and press Enter to jump. Native bookmarks are saved to bookmarks.toml; web bookmarks last for the current page session.
+- **Bookmarks** — press B to toggle a bookmark on the current verse. Use :bookmarks (or :bm) to browse saved verses, type to filter, use ↑/↓ to select, and press Enter to jump. Native bookmarks are saved to bookmarks.toml; web bookmarks are saved in this browser.
 - **Vim-like navigation** — `h/l` chapter switching, `j/k` scrolling, `g/G` jump, `:goto` command mode
 - **State persistence** — remembers last position and translation across sessions
 - **Fast startup** — bundled translations serialized as postcard binary, deserialized instantly

@@ -42,6 +42,7 @@ pub struct App {
     show_help: bool,
     pub last_width: u16,
     bookmarks: BookmarkStore,
+    bookmark_revision: u64,
     error_message: Option<String>,
     persistence: Box<dyn Persistence>,
     translation_provider: Box<dyn TranslationProvider>,
@@ -107,10 +108,16 @@ impl App {
             show_help: false,
             last_width: 80,
             bookmarks,
+            bookmark_revision: 0,
             error_message: None,
             persistence,
             translation_provider,
         }
+    }
+
+    /// Changes whenever a bookmark is added or removed in this session.
+    pub fn bookmark_revision(&self) -> u64 {
+        self.bookmark_revision
     }
 
     pub fn save_state(&self) {
@@ -250,6 +257,7 @@ impl App {
                     verse: self.reading_pane.current_verse_approx(),
                 };
                 self.bookmarks.toggle(vref);
+                self.bookmark_revision = self.bookmark_revision.wrapping_add(1);
             }
             Action::Resize(w, _) => {
                 self.last_width = *w;
