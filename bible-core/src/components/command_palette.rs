@@ -13,10 +13,11 @@ enum CompletionContext {
     Command,
     Translation,
     Goto,
+    Bookmarks,
     Other,
 }
 
-const COMMANDS: &[&str] = &["quit", "goto", "translation"];
+const COMMANDS: &[&str] = &["quit", "goto", "translation", "bookmarks"];
 
 pub struct CommandPalette {
     input: String,
@@ -25,6 +26,7 @@ pub struct CommandPalette {
     suggestion_state: ListState,
     selected: usize,
     available_translations: Vec<String>,
+    bookmarks: Vec<String>,
 }
 
 impl Default for CommandPalette {
@@ -42,11 +44,22 @@ impl CommandPalette {
             suggestion_state: ListState::default(),
             selected: 0,
             available_translations: Vec::new(),
+            bookmarks: Vec::new(),
         }
     }
 
     pub fn set_translations(&mut self, names: Vec<String>) {
         self.available_translations = names;
+    }
+
+    pub(crate) fn set_bookmarks(&mut self, references: Vec<String>) {
+        self.bookmarks = references;
+    }
+
+    pub(crate) fn open_bookmarks(&mut self, alias: &str) {
+        self.input = format!("{alias} ");
+        self.cursor = self.input.len();
+        self.update_suggestions();
     }
 
     pub fn open(&mut self) {
@@ -67,6 +80,7 @@ impl CommandPalette {
         match cmd {
             "t" | "translation" => CompletionContext::Translation,
             "goto" | "g" => CompletionContext::Goto,
+            "bookmarks" | "bm" => CompletionContext::Bookmarks,
             _ => CompletionContext::Other,
         }
     }
@@ -111,9 +125,19 @@ impl CommandPalette {
                         .collect()
                 }
             }
+            CompletionContext::Bookmarks => {
+                let prefix = self.argument_prefix().to_lowercase();
+                self.bookmarks
+                    .iter()
+                    .filter(|reference| reference.to_lowercase().starts_with(&prefix))
+                    .cloned()
+                    .collect()
+            }
             CompletionContext::Other => Vec::new(),
         };
-        self.suggestions.truncate(15);
+        if ctx != CompletionContext::Bookmarks {
+            self.suggestions.truncate(15);
+        }
         self.selected = 0;
         if self.suggestions.is_empty() {
             self.suggestion_state.select(None);
@@ -134,7 +158,7 @@ impl CommandPalette {
                 self.input = format!("{suggestion} ");
                 self.cursor = self.input.len();
             }
-            CompletionContext::Translation | CompletionContext::Goto => {
+            CompletionContext::Translation | CompletionContext::Goto | CompletionContext::Bookmarks => {
                 // Replace argument portion
                 let trimmed = self.input.trim_start();
                 if let Some(pos) = trimmed.find(' ') {
@@ -160,6 +184,14 @@ impl CommandPalette {
         match key.code {
             KeyCode::Esc => Action::ExitCommandMode,
             KeyCode::Enter => {
+                if self.detect_context() == CompletionContext::Bookmarks {
+                    if let Some(reference) = self.suggestions.get(self.selected) {
+                        return Action::ExecuteCommand(format!("bookmarks {reference}"));
+                    }
+                    if !self.bookmarks.is_empty() {
+                        return Action::ExitCommandMode;
+                    }
+                }
                 let cmd = self.input.trim().to_string();
                 Action::ExecuteCommand(cmd)
             }
@@ -211,7 +243,7 @@ impl CommandPalette {
         let suggestion_height = if self.suggestions.is_empty() {
             0
         } else {
-            (self.suggestions.len() as u16 + 1).min(area.height.saturating_sub(6))
+            (self.suggestions.len().min(15) as u16 + 1).min(area.height.saturating_sub(6))
         };
         let total_height = 3 + suggestion_height;
         let popup = Rect::new(x, 2, width, total_height);

@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::bible::canon::CANON;
 use crate::bible::model::VerseRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,6 +39,23 @@ pub struct BookmarkStore {
 }
 
 impl BookmarkStore {
+    pub(crate) fn references(&self) -> Vec<String> {
+        let mut bookmarks: Vec<_> = self.bookmarks.iter().collect();
+        bookmarks.sort_by(|a, b| {
+            b.created_at.cmp(&a.created_at).then_with(|| {
+                (a.book_index, a.chapter, a.verse).cmp(&(b.book_index, b.chapter, b.verse))
+            })
+        });
+        bookmarks
+            .into_iter()
+            .filter_map(|bookmark| {
+                CANON.get(bookmark.book_index as usize).map(|book| {
+                    format!("{} {}:{}", book.name, bookmark.chapter, bookmark.verse)
+                })
+            })
+            .collect()
+    }
+
     pub fn toggle(&mut self, vref: VerseRef) -> bool {
         if let Some(pos) = self.bookmarks.iter().position(|b| b.verse_ref() == vref) {
             self.bookmarks.remove(pos);

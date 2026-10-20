@@ -230,14 +230,15 @@ impl App {
             }
             Action::EnterCommandMode => {
                 self.mode = Mode::Command;
+                self.command_palette.set_bookmarks(self.bookmarks.references());
                 self.command_palette.open();
             }
             Action::ExitCommandMode => {
                 self.mode = Mode::Normal;
             }
             Action::ExecuteCommand(cmd) => {
-                self.execute_command(cmd);
                 self.mode = Mode::Normal;
+                self.execute_command(cmd);
             }
             Action::ToggleHelp => {
                 self.show_help = !self.show_help;
@@ -268,6 +269,34 @@ impl App {
             "t" | "translation" => {
                 if let Some(name) = parts.get(1) {
                     self.switch_translation(name.trim());
+                }
+            }
+            "bookmarks" | "bm" => {
+                if self.bookmarks.bookmarks.is_empty() {
+                    self.error_message = Some("No bookmarks yet: press B on a verse".into());
+                } else if let Some(ref_str) = parts.get(1).filter(|s| !s.trim().is_empty()) {
+                    if let Some(vref) = reference::parse_reference(ref_str.trim(), None, None) {
+                        // Validate identities as well as positions in sparse translations.
+                        if self.bible.books.get(vref.book_index as usize)
+                            .filter(|book| book.index == vref.book_index)
+                            .and_then(|book| {
+                                vref.chapter.checked_sub(1)
+                                    .and_then(|index| book.chapters.get(index as usize))
+                            })
+                            .is_some_and(|chapter| {
+                                chapter.number == vref.chapter
+                                    && chapter.verses.iter().any(|verse| verse.number == vref.verse)
+                            })
+                        {
+                            self.execute_command(&format!("goto {}", ref_str.trim()));
+                        } else {
+                            self.error_message = Some(format!("Not in {}", self.current_translation.abbreviation));
+                        }
+                    }
+                } else {
+                    self.command_palette.set_bookmarks(self.bookmarks.references());
+                    self.command_palette.open_bookmarks(parts[0]);
+                    self.mode = Mode::Command;
                 }
             }
             "goto" | "g" => {

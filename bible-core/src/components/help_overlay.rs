@@ -34,6 +34,7 @@ const HELP_LINES: &[(&str, &str)] = &[
     ("COMMANDS (:)", ""),
     (":q", "Quit"),
     (":goto <ref>", "Go to reference (e.g. John 3:16)"),
+    (":bookmarks / :bm", "Browse bookmarks; type to filter, ↑/↓ select, Enter jumps"),
     (":t <name>", "Switch translation (incl. imported)"),
     ("Tab", "Accept autocomplete suggestion"),
 ];
@@ -42,38 +43,41 @@ pub struct HelpOverlay;
 
 impl HelpOverlay {
     pub fn render(frame: &mut Frame, area: Rect) {
-        let height = (HELP_LINES.len() as u16 + 4).min(area.height.saturating_sub(2));
         let width = 60u16.min(area.width.saturating_sub(4));
-        let x = (area.width.saturating_sub(width)) / 2;
-        let y = (area.height.saturating_sub(height)) / 2;
-        let popup = Rect::new(x, y, width, height);
-
-        frame.render_widget(Clear, popup);
-
         let lines: Vec<Line> = HELP_LINES
             .iter()
-            .map(|(key, desc)| {
+            .flat_map(|(key, desc)| {
                 if desc.is_empty() && key.is_empty() {
-                    Line::from("")
+                    vec![Line::from("")]
                 } else if desc.is_empty() {
                     // Section header
-                    Line::from(Span::styled(
+                    vec![Line::from(Span::styled(
                         key.to_string(),
                         Style::default()
                             .fg(Color::White)
                             .add_modifier(Modifier::BOLD),
-                    ))
+                    ))]
                 } else {
-                    Line::from(vec![
-                        Span::styled(
-                            format!("{:<26}", key),
-                            Style::default().fg(Color::Yellow),
-                        ),
-                        Span::styled(desc.to_string(), Style::default().fg(Color::White)),
-                    ])
+                    textwrap::wrap(desc, width.saturating_sub(28).max(1) as usize)
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, text)| Line::from(vec![
+                            Span::styled(
+                                format!("{:<26}", if i == 0 { key } else { &"" }),
+                                Style::default().fg(Color::Yellow),
+                            ),
+                            Span::styled(text.into_owned(), Style::default().fg(Color::White)),
+                        ]))
+                        .collect()
                 }
             })
             .collect();
+
+        let height = (lines.len() as u16 + 4).min(area.height.saturating_sub(2));
+        let x = (area.width.saturating_sub(width)) / 2;
+        let y = (area.height.saturating_sub(height)) / 2;
+        let popup = Rect::new(x, y, width, height);
+        frame.render_widget(Clear, popup);
 
         let widget = Paragraph::new(lines).block(
             Block::default()
