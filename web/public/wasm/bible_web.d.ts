@@ -75,10 +75,10 @@ export interface InitOutput {
     readonly terminaldebugapi_getTerminalSize: (a: number) => any;
     readonly main: () => void;
     readonly wasm_bindgen__closure__destroy__hede4dd50843773d4: (a: number, b: number) => void;
-    readonly wasm_bindgen__closure__destroy__h41ad72645192fcbf: (a: number, b: number) => void;
+    readonly wasm_bindgen__closure__destroy__h767ce83a3d931087: (a: number, b: number) => void;
     readonly wasm_bindgen__convert__closures_____invoke__he0bb42ed6f95f61a: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__he5742b68c5777896: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h9629eca6e105ab2b: (a: number, b: number) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h391e1eb18eaf2f1a: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__hd8fe6e1da811a844: (a: number, b: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;
